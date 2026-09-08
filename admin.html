@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单汇总（经理端）</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f4f5f7; color: #222; }
+    #loginGate { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #f4f5f7; z-index: 999; }
+    .login-card { background: #fff; padding: 36px 40px; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.08); width: 360px; text-align: center; }
+    .login-card h1 { font-size: 20px; margin-bottom: 6px; letter-spacing: 2px; }
+    .login-card p { color: #888; font-size: 13px; margin-bottom: 22px; }
+    .login-card input { width: 100%; padding: 11px 12px; margin-bottom: 12px; border: 1px solid #d9dde3; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+    .login-card input:focus { outline: none; border-color: #1667ff; }
+    .login-card button { width: 100%; padding: 11px; background: #1667ff; color: #fff; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; }
+    .login-card button:hover { background: #0f55d8; }
+    #loginMsg { color: #d33; font-size: 13px; margin-top: 10px; min-height: 18px; }
+    #app { max-width: 1500px; margin: 0 auto; padding: 20px 16px; }
+    .userbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 15px; }
+    .userbar b { color: #1667ff; }
+    .userbar button { padding: 6px 16px; border: 1px solid #d9dde3; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; font-size: 14px; }
+    .toolbar select, .toolbar input { padding: 7px 10px; border: 1px solid #d9dde3; border-radius: 6px; font-size: 13px; }
+    .toolbar button { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    #exportCsvBtn { background: #1667ff; color: #fff; }
+    #exportCsvBtn:hover { background: #0f55d8; }
+    #refreshBtn { background: #fff; border: 1px solid #d9dde3; color: #333; }
+    #count { color: #666; font-size: 13px; }
+    .sum { background: #fff; border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+    .sum b { color: #1667ff; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow: auto; max-height: calc(100vh - 250px); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #e6e8eb; padding: 8px 10px; text-align: left; white-space: nowrap; }
+    th { background: #f0f2f5; position: sticky; top: 0; z-index: 1; }
+    tr:hover td { background: #f7f9fc; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .empty { padding: 40px; text-align: center; color: #999; }
+    #errMsg { color: #d33; margin: 8px 0; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+  <div id="loginGate">
+    <div class="login-card">
+      <h1>订 单 汇 总（经理端）</h1>
+      <p>请使用经理账号登录</p>
+      <input id="loginEmail" type="text" placeholder="邮箱" autocomplete="username">
+      <input id="loginPwd" type="password" placeholder="密码" autocomplete="current-password">
+      <button id="loginBtn" type="button">登 录</button>
+      <div id="loginMsg"></div>
+    </div>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="userbar">
+      <span>订单汇总 · 经理端</span>
+      <span>当前用户：<b id="curUser"></b></span>
+      <button id="logoutBtn">退出登录</button>
+    </div>
+
+    <div class="toolbar">
+      <select id="fOwner"><option value="">全部负责人</option></select>
+      <label>下单日期</label>
+      <input type="date" id="fFrom"> 至 <input type="date" id="fTo">
+      <button id="refreshBtn">刷新</button>
+      <button id="exportCsvBtn">导出 CSV（Excel 可开）</button>
+      <span id="count"></span>
+    </div>
+
+    <div class="sum">
+      共 <b id="orderCount">0</b> 单 ｜ 合计原价 <b id="sumOrig">0.00</b> 元 ｜ 合计金额 <b id="sumAmount">0.00</b> 元 ｜ 合计最终价格 <b id="sumFinal">0.00</b> 元 ｜ 合计定金 <b id="sumDeposit">0.00</b> 元
+    </div>
+
+    <div id="errMsg"></div>
+
+    <div class="card">
+      <table id="ordersTable">
+        <thead>
+          <tr>
+            <th>订单号</th><th>提交时间</th><th>负责人</th><th>客户</th><th>电话</th><th>地址</th>
+            <th>下单日期</th><th>交付日期</th><th>交货周期</th>
+            <th>合计原价</th><th>合计金额</th><th>最终价格</th>
+            <th>定金方式</th><th>定金金额</th><th>定金日期</th><th>尾款</th><th>备注</th>
+          </tr>
+        </thead>
+        <tbody id="ordersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="lib/supabase.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    const SUPABASE_URL = 'https://oiwbclaqpkgjuibesopf.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_L-ngO6j5IEMBrUAHqn2xSg_sVVJZUl1';
+    let sbClient = null;
+    let allOrders = [];
+
+    function showLogin() {
+      document.getElementById('loginGate').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+    function enterApp() {
+      const session = sbClient.auth.session();
+      const u = (session && session.user) || null;
+      if (!u) { showLogin(); return; }
+      document.getElementById('curUser').textContent = (u.user_metadata && u.user_metadata.name) || u.email || '';
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('app').style.display = '';
+      loadOrders();
+    }
+    function init() {
+      sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      sbClient.auth.getSession().then(function (res) {
+        if (res.data && res.data.session) enterApp(); else showLogin();
+      });
+    }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function fmtMoney(v) {
+      const n = parseFloat(v) || 0;
+      return n.toFixed(2);
+    }
+    function fmtDateTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d)) return '';
+      const p2 = (n) => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+    }
+    function leadDays(o) {
+      if (!o.order_date || !o.deliver_date) return '';
+      const a = new Date(o.order_date + 'T00:00:00');
+      const b = new Date(o.deliver_date + 'T00:00:00');
+      if (isNaN(a) || isNaN(b)) return '';
+      const diff = Math.round((b - a) / 86400000);
+      return diff >= 0 ? diff + ' 天' : '';
+    }
+    function loadOrders() {
+      sbClient.from('orders').select('*').order('id', { ascending: false }).then(function (res) {
+        if (res.error) { document.getElementById('errMsg').textContent = '加载失败：' + res.error.message; return; }
+        allOrders = res.data || [];
+        buildOwnerFilter();
+        render();
+      });
+    }
+    function buildOwnerFilter() {
+      const sel = document.getElementById('fOwner');
+      const cur = sel.value;
+      const names = [];
+      allOrders.forEach(function (o) { if (o.owner && names.indexOf(o.owner) < 0) names.push(o.owner); });
+      sel.innerHTML = '<option value="">全部负责人</option>';
+      names.forEach(function (n) {
+        const op = document.createElement('option');
+        op.value = n; op.textContent = n;
+        sel.appendChild(op);
+      });
+      if (cur) sel.value = cur;
+    }
+    function filtered() {
+      const owner = document.getElementById('fOwner').value;
+      const from = document.getElementById('fFrom').value;
+      const to = document.getElementById('fTo').value;
+      return allOrders.filter(function (o) {
+        if (owner && o.owner !== owner) return false;
+        if (from && o.order_date && o.order_date < from) return false;
+        if (to && o.order_date && o.order_date > to) return false;
+        return true;
+      });
+    }
+    function render() {
+      const rows = filtered();
+      const tbody = document.getElementById('ordersBody');
+      const cnt = document.getElementById('count');
+      let sumOrig = 0, sumAmount = 0, sumFinal = 0, sumDeposit = 0;
+      rows.forEach(function (o) {
+        sumOrig += parseFloat(o.total_orig) || 0;
+        sumAmount += parseFloat(o.total_amount) || 0;
+        sumFinal += parseFloat(o.final_price) || 0;
+        sumDeposit += parseFloat(o.deposit_amount) || 0;
+      });
+      document.getElementById('orderCount').textContent = rows.length;
+      document.getElementById('sumOrig').textContent = fmtMoney(sumOrig);
+      document.getElementById('sumAmount').textContent = fmtMoney(sumAmount);
+      document.getElementById('sumFinal').textContent = fmtMoney(sumFinal);
+      document.getElementById('sumDeposit').textContent = fmtMoney(sumDeposit);
+      cnt.textContent = '（显示 ' + rows.length + ' / 共 ' + allOrders.length + ' 单）';
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="17" class="empty">暂无订单数据</td></tr>';
+        return;
+      }
+      let h = '';
+      rows.forEach(function (o) {
+        const tail = (o.final_price != null && o.deposit_amount != null) ? (parseFloat(o.final_price) - parseFloat(o.deposit_amount)) : '';
+        h += '<tr>'
+          + '<td>' + esc(o.order_no) + '</td>'
+          + '<td>' + esc(fmtDateTime(o.created_at)) + '</td>'
+          + '<td>' + esc(o.owner) + '</td>'
+          + '<td>' + esc(o.customer) + '</td>'
+          + '<td>' + esc(o.phone) + '</td>'
+          + '<td>' + esc(o.address) + '</td>'
+          + '<td>' + esc(o.order_date || '') + '</td>'
+          + '<td>' + esc(o.deliver_date || '') + '</td>'
+          + '<td>' + esc(leadDays(o)) + '</td>'
+          + '<td class="num">' + fmtMoney(o.total_orig) + '</td>'
+          + '<td class="num">' + fmtMoney(o.total_amount) + '</td>'
+          + '<td class="num">' + fmtMoney(o.final_price) + '</td>'
+          + '<td>' + esc(o.deposit_method) + '</td>'
+          + '<td class="num">' + fmtMoney(o.deposit_amount) + '</td>'
+          + '<td>' + esc(o.deposit_date || '') + '</td>'
+          + '<td class="num">' + (tail === '' ? '' : fmtMoney(tail)) + '</td>'
+          + '<td>' + esc(o.notes) + '</td>'
+          + '</tr>';
+      });
+      tbody.innerHTML = h;
+    }
+    function exportCsv() {
+      const rows = filtered();
+      if (!rows.length) { alert('当前筛选条件下没有订单可导出'); return; }
+      const head = ['订单号', '提交时间', '负责人', '客户', '电话', '地址', '下单日期', '交付日期', '交货周期', '合计原价', '合计金额', '最终价格', '定金方式', '定金金额', '定金日期', '尾款', '备注'];
+      const lines = [head.join(',')];
+      rows.forEach(function (o) {
+        const tail = (o.final_price != null && o.deposit_amount != null) ? (parseFloat(o.final_price) - parseFloat(o.deposit_amount)).toFixed(2) : '';
+        const vals = [
+          o.order_no, fmtDateTime(o.created_at), o.owner, o.customer, o.phone, o.address,
+          o.order_date || '', o.deliver_date || '', leadDays(o),
+          fmtMoney(o.total_orig), fmtMoney(o.total_amount), fmtMoney(o.final_price),
+          o.deposit_method || '', fmtMoney(o.deposit_amount), o.deposit_date || '', tail, o.notes || ''
+        ];
+        lines.push(vals.map(function (v) {
+          v = String(v == null ? '' : v);
+          if (/[",\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+          return v;
+        }).join(','));
+      });
+      const csv = '\uFEFF' + lines.join('\r\n'); // BOM 让 Excel 正确识别中文
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      const now = new Date();
+      const p2 = (n) => String(n).padStart(2, '0');
+      a.href = URL.createObjectURL(blob);
+      a.download = '订单汇总_' + now.getFullYear() + p2(now.getMonth() + 1) + p2(now.getDate()) + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', function () {
+      const email = document.getElementById('loginEmail').value.trim();
+      const pwd = document.getElementById('loginPwd').value;
+      const msg = document.getElementById('loginMsg');
+      msg.textContent = '';
+      if (!email || !pwd) { msg.textContent = '请输入邮箱和密码'; return; }
+      sbClient.auth.signInWithPassword({ email: email, password: pwd }).then(function (res) {
+        if (res.error) { msg.textContent = '登录失败：' + (res.error.message || '邮箱或密码错误'); return; }
+        enterApp();
+      });
+    });
+    document.getElementById('loginPwd').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+    document.getElementById('logoutBtn').addEventListener('click', function () { sbClient.auth.signOut().then(showLogin); });
+    document.getElementById('refreshBtn').addEventListener('click', loadOrders);
+    document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+    document.getElementById('fOwner').addEventListener('change', render);
+    document.getElementById('fFrom').addEventListener('change', render);
+    document.getElementById('fTo').addEventListener('change', render);
+    init();
+  })();
+  </script>
+</body>
+</html>

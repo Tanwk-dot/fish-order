@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户订货确认单</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 登录门：未登录时只显示这个 -->
+  <div id="loginGate" style="display:flex">
+    <div class="login-card">
+      <h1>鱼 缸 订 单 管 理</h1>
+      <p class="login-sub">请使用您的账号登录</p>
+      <input id="loginEmail" type="text" placeholder="邮箱" autocomplete="username">
+      <input id="loginPwd" type="password" placeholder="密码" autocomplete="current-password">
+      <button id="loginBtn" type="button">登 录</button>
+      <div id="loginMsg"></div>
+    </div>
+  </div>
+
+  <!-- 应用主体（登录后显示） -->
+  <div id="app" style="display:none">
+
+  <div class="userbar">
+    <span>当前用户：<b id="curUser"></b></span>
+    <button type="button" id="logoutBtn">退出登录</button>
+  </div>
+
+  <div class="sheet">
+
+    <!-- ① 标题 -->
+    <div class="order-no">订单号：<span id="orderNo"></span></div>
+    <h1>客 户 订 货 确 认 单</h1>
+
+    <form id="orderForm">
+
+      <!-- ② 客户信息区 -->
+      <div class="info-block">
+        <div class="row">
+          <div class="field"><label>客户</label><input id="customer" value=""><div class="field-err" data-err="customer"></div></div>
+          <div class="field"><label>电话</label><input id="phone" value=""><div class="field-err" data-err="phone"></div></div>
+          <div class="field"><label>下单日期</label><input id="orderDate" type="date" value=""></div>
+          <div class="field"><label>预计交付日期</label><input id="expectDate" type="date" value=""><div class="field-err" data-err="expectDate"></div></div>
+        </div>
+        <div class="row">
+          <div class="field wide"><label>收货地址</label>
+            <div class="addr-box">
+              <select id="province"><option value="">请选择省</option></select>
+              <select id="city"><option value="">请选择市</option></select>
+              <select id="district"><option value="">请选择区县</option></select>
+              <input id="detail" placeholder="街道、门牌号" value="">
+            </div>
+            <div class="field-err" data-err="address"></div>
+          </div>
+          <div class="field"><label>交货周期</label><input id="leadTime" readonly placeholder="自动"></div>
+          <div class="field"><label>负责人</label>
+            <input id="owner" readonly placeholder="登录后自动带出">
+            <div class="field-err" data-err="owner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ 明细表 -->
+      <table id="itemsTable">
+        <!-- 用 colgroup 固定每一列的宽度，让"备注"列更宽 -->
+        <colgroup>
+          <col style="width:3%">
+          <col style="width:7%">
+          <col style="width:8%">
+          <col style="width:15%">
+          <col style="width:4%">
+          <col style="width:5%">
+          <col style="width:6%">
+          <col style="width:6%">
+          <col style="width:46%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>序号</th>
+            <th>类别</th>
+            <th>品牌</th>
+            <th>型号规格</th>
+            <th>数量</th>
+            <th>单价</th>
+            <th>原价</th>
+            <th>总价</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+
+        <!-- 固定第一行：鱼缸（类别不可改） -->
+        <tbody id="topRows">
+          <tr data-category="鱼缸">
+            <td class="no"><span class="no-val">1</span></td>
+            <td class="fixed-cat">鱼缸</td>
+            <td><div class="brand-wrap"><select class="brand"></select><input class="brand-manual"><button class="restore" type="button" data-field="brand">重新选择</button></div></td>
+            <td><div class="model-wrap"><select class="model"></select><input class="model-manual"><button class="restore" type="button" data-field="model">重新选择</button></div></td>
+            <td><input class="qty" value="1" type="number" min="0"></td>
+            <td><input class="price" value="26000" readonly></td>
+            <td><input class="orig" readonly><div class="cell-err orig-err"></div></td>
+            <td><input class="amount" readonly></td>
+            <td>
+              <div class="fish-options">
+                <div class="fish-opt-wrap">
+                  <select class="fish-opt" data-fish="cabinet">
+                    <option value="" selected>柜体颜色</option>
+                  </select>
+                  <div class="field-err" data-err="fishCabinet"></div>
+                </div>
+                <div class="fish-opt-wrap">
+                  <select class="fish-opt" data-fish="door" style="display:none">
+                    <option value="" selected>柜门款式</option>
+                  </select>
+                  <div class="field-err" data-err="fishDoor"></div>
+                </div>
+                <div class="fish-opt-wrap">
+                  <select class="fish-opt" data-fish="rock">
+                    <option value="" selected>岩板颜色</option>
+                  </select>
+                  <div class="field-err" data-err="fishRock"></div>
+                </div>
+                <div class="fish-opt-wrap">
+                  <select class="fish-opt" data-fish="flow">
+                    <option value="" selected>溢流方向</option>
+                  </select>
+                  <div class="field-err" data-err="fishFlow"></div>
+                </div>
+                <div class="fish-opt-wrap">
+                  <select class="fish-opt" data-fish="filter">
+                    <option value="" selected>底滤</option>
+                  </select>
+                  <div class="field-err" data-err="fishFilter"></div>
+                </div>
+                <div class="fish-opt-wrap">
+                  <select class="fish-opt" data-fish="base" style="display:none">
+                    <option value="" selected>底柜</option>
+                  </select>
+                  <div class="field-err" data-err="fishBase"></div>
+                </div>
+              </div>
+              <!-- 品牌选"其他"时：四个下拉换成这个手动备注框（默认隐藏） -->
+              <textarea class="remark fish-free-note" rows="1"></textarea>
+            </td>
+          </tr>
+        </tbody>
+
+        <!-- 中间：可添加的行，点"添加一行"按钮在这里追加 -->
+        <tbody id="middleRows">
+        </tbody>
+
+        <!-- 固定倒数第二行：物流费 + 最后一行：安装费 -->
+        <tbody id="bottomRows">
+          <tr class="fee-row logi-row">
+            <td class="no"><span class="no-val"></span></td>
+            <td class="fixed-cat">物流费</td>
+            <td><select class="brand" disabled><option value=""></option></select></td>
+            <td><select class="model logi-model" disabled><option value=""></option></select></td>
+            <td><input class="qty" disabled></td>
+            <td><input class="price"></td>
+            <td><input class="orig" readonly></td>
+            <td><input class="amount" readonly></td>
+            <td><select class="logi-remark"></select></td>
+          </tr>
+          <tr class="fee-row">
+            <td class="no"><span class="no-val"></span></td>
+            <td class="fixed-cat">安装费</td>
+            <td><select class="brand" disabled><option value=""></option></select></td>
+            <td><select class="model" disabled><option value=""></option></select></td>
+            <td><input class="qty" disabled></td>
+            <td><input class="price"></td>
+            <td><input class="orig" readonly></td>
+            <td><input class="amount" readonly></td>
+            <td>
+              <div class="install-wrap">
+                <span class="install-free">一对一免费视频指导安装</span>
+                <div class="install-team" style="display:none">
+                  <span>豆鱼专业安装团队（</span>
+                  <input class="install-count" type="number" min="1" max="9" value="1">
+                  <span>人）上门，含鱼缸、器材安装调试及使用指导</span>
+                </div>
+              </div>
+              <div class="field-err" data-err="installCount"></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 重复产品提示（实时标注，提交时也校验） -->
+      <div id="dupWarning" class="price-warning"></div>
+
+      <!-- 添加一行按钮 -->
+      <div class="table-actions">
+        <button type="button" id="addRowBtn">＋ 添加一行</button>
+      </div>
+
+      <!-- ④ 合计区：合计原价 / 合计金额 / 最终价格 -->
+      <div class="total-area">
+        <div class="total-row">
+          <span class="total-label">合计原价（元）</span>
+          <input id="totalOrig" readonly>
+        </div>
+        <div class="total-row">
+          <span class="total-label">合计金额（元）</span>
+          <input id="total" readonly>
+        </div>
+        <div class="total-row">
+          <span class="total-label">最终价格（元）</span>
+          <input id="finalPrice" placeholder="手动填写">
+        </div>
+        <div class="field-err" data-err="finalPrice"></div>
+        <div id="priceWarning" class="price-warning"></div>
+      </div>
+
+      <!-- ⑤ 收款信息：定金 + 尾款（自动） -->
+      <div class="info-block">
+        <div class="row">
+          <div class="field"><label>定金 · 收款方式</label><input id="payMethod" placeholder="如：微信 / 支付宝 / 转账"><div class="field-err" data-err="payMethod"></div></div>
+          <div class="field"><label>定金 · 收款金额</label><input id="deposit" placeholder="0.00"><div class="field-err" data-err="deposit"></div></div>
+          <div class="field"><label>定金 · 收款日期</label><input id="depositDate" type="date"><div class="field-err" data-err="depositDate"></div></div>
+          <div class="field"><label>尾款</label><input id="balance" readonly></div>
+        </div>
+        <div id="payWarning" class="price-warning"></div>
+      </div>
+
+      <!-- ⑥ 备注 -->
+      <div class="info-block">
+        <div class="row">
+          <div class="field wide"><label>备注</label><textarea id="remark" rows="1"></textarea></div>
+        </div>
+      </div>
+
+      <div id="exportWarn" class="export-warn"></div>
+      <div class="actions">
+        <button type="submit">提交订单</button>
+        <button type="button" id="exportBtn" class="btn-ghost">导出为图片</button>
+      </div>
+      <div id="okMsg" class="ok-msg"></div>
+
+    </form>
+  </div>
+
+  </div><!-- /app -->
+
+  <!-- 云端数据库（Supabase）客户端 + 截图导出库（都在项目 lib 目录，不依赖外网 CDN） -->
+  <script src="lib/supabase.js"></script>
+  <script src="lib/html-to-image.min.js"></script>
+  <script src="region-data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
