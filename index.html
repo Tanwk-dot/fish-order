@@ -8,6 +8,22 @@
 </head>
 <body>
 
+  <!-- 修改密码弹窗 -->
+  <div id="pwdModal" class="modal-mask" style="display:none">
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-head"><span>修改密码</span><button type="button" id="pwdClose">关闭</button></div>
+      <div class="modal-body">
+        <div class="field" style="margin-bottom:12px"><label>当前密码</label><input id="oldPwd" type="password"></div>
+        <div class="field" style="margin-bottom:12px"><label>新密码（至少8位）</label><input id="newPwd" type="password"></div>
+        <div class="field" style="margin-bottom:12px"><label>确认新密码</label><input id="newPwd2" type="password"></div>
+        <div id="pwdMsg" style="margin:6px 0 10px;color:#e74c3c;font-size:13px;min-height:18px"></div>
+        <div class="actions" style="justify-content:flex-end;margin-top:6px">
+          <button type="button" id="pwdSave" class="btn-ghost">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 登录门：未登录时只显示这个 -->
   <div id="loginGate" style="display:flex">
     <div class="login-card">
@@ -25,9 +41,42 @@
 
   <div class="userbar">
     <span>当前用户：<b id="curUser"></b></span>
+    <button type="button" id="chgPwdBtn">修改密码</button>
     <button type="button" id="logoutBtn">退出登录</button>
   </div>
 
+  <div class="topnav" id="topnav">
+    <button type="button" class="nav-tab active" data-tab="home">首页</button>
+    <button type="button" class="nav-tab" data-tab="form">填写订单</button>
+    <button type="button" class="nav-tab" data-tab="summary">订单汇总</button>
+    <button type="button" class="nav-tab" data-tab="stock">现货表</button>
+  </div>
+
+  <div id="tab-home" class="tab-panel">
+    <div class="home-hero">
+      <h2>鱼缸订单系统</h2>
+      <p>欢迎使用，<b id="homeUser"></b> 请选择要进入的功能</p>
+    </div>
+    <div class="home-cards">
+      <div class="home-card" data-go="form">
+        <div class="hc-icon hc-fill">填</div>
+        <div class="hc-title">填写订单</div>
+        <div class="hc-desc">创建新的客户订货确认单</div>
+      </div>
+      <div class="home-card" data-go="summary">
+        <div class="hc-icon hc-sum">汇</div>
+        <div class="hc-title">订单汇总</div>
+        <div class="hc-desc">查看订单与汇总数据</div>
+      </div>
+      <div class="home-card" data-go="stock">
+        <div class="hc-icon hc-stock">现</div>
+        <div class="hc-title">现货表</div>
+        <div class="hc-desc">查看与管理鱼缸现货</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-form" class="tab-panel">
   <div class="sheet">
 
     <!-- ① 标题 -->
@@ -58,6 +107,11 @@
           <div class="field"><label>负责人</label>
             <input id="owner" readonly placeholder="登录后自动带出">
             <div class="field-err" data-err="owner"></div>
+          </div>
+          <div class="field"><label>鱼缸编号</label>
+            <input id="tankNo" list="tankNoList" placeholder="选择现货编号或手填">
+            <datalist id="tankNoList"></datalist>
+            <div class="field-err" data-err="tankNo"></div>
           </div>
         </div>
       </div>
@@ -239,6 +293,121 @@
       <div id="okMsg" class="ok-msg"></div>
 
     </form>
+  </div>
+  </div><!-- /tab-form -->
+
+  <!-- ② 订单汇总（经理看全部，销售看自己的；表头可筛选并记住筛选状态） -->
+  <div id="tab-summary" class="tab-panel" style="display:none">
+    <div class="toolbar">
+      <button type="button" id="refreshBtn">刷新</button>
+      <button type="button" id="exportCsvBtn">导出 CSV（Excel 可开）</button>
+      <button type="button" id="colPickBtn" class="btn-ghost">选择显示列</button>
+      <span id="count"></span>
+    </div>
+    <div class="sum">共 <b id="orderCount">0</b> 单 ｜ 合计营业额 <b id="sumFinal">0.00</b> 元 ｜ 合计收款 <b id="sumDeposit">0.00</b> 元 ｜ 合计待收款 <b id="sumDue">0.00</b> 元</div>
+    <div id="errMsg"></div>
+    <div class="card">
+      <div class="table-scroll">
+        <table id="ordersTable">
+          <thead>
+            <tr id="sumHeadRow">
+              <th>订单号</th><th>提交时间</th><th>负责人</th><th>客户</th><th>电话</th><th>地址</th>
+              <th>下单日期</th><th>交付日期</th><th>交货周期</th>
+              <th>最终价格</th>
+              <th>定金方式</th><th>定金金额</th><th>定金日期</th><th>尾款</th><th>备注</th>
+            </tr>
+
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 现货管理（仅经理可见） -->
+  <div id="tab-stock" class="tab-panel" style="display:none">
+    <div class="stock-panel">
+      <div class="stock-title">现货表</div>
+      <div class="stock-add">
+        <input id="sSn" placeholder="编号（唯一，必填）">
+        <select id="sBrandSel"><option value="">请选择品牌</option></select>
+        <input id="sBrandMan" placeholder="手动输入品牌" style="display:none">
+        <select id="sModelSel"><option value="">型号规格</option></select>
+        <input id="sModelMan" placeholder="手动输入型号" style="display:none">
+        <select id="sStatus"><option>现货在家</option><option>现货在工厂</option><option>二手</option></select>
+        <div id="stockFishOpts" class="fish-options"></div>
+        <div id="stockOptsMsg" class="hint" style="display:none;color:#d33;">请完整选择品牌对应的备注选项</div>
+        <button id="addStockBtn" type="button">＋ 添加</button>
+      </div>
+      <div id="stockMsg" class="stock-msg"></div>
+      <table id="stockTable">
+        <thead>
+          <tr>
+            <th>编号<input id="fStockSn" placeholder="搜索编号"></th>
+            <th>品牌<select id="fStockBrand"><option value="">全部品牌</option></select></th>
+            <th>型号规格<select id="fStockModel"><option value="">全部型号</option></select></th>
+            <th>柜体<select id="fStockCabinet"><option value="">全部柜体</option></select></th>
+            <th>岩板<select id="fStockRock"><option value="">全部岩板</option></select></th>
+            <th>溢流方向<select id="fStockFlow"><option value="">全部溢流</option></select></th>
+            <th>底滤<select id="fStockFilter"><option value="">全部底滤</option></select></th>
+            <th>状态<select id="fStockStatus"><option value="__unsold__">未售</option><option>现货在家</option><option>现货在工厂</option><option>二手</option><option>锁单</option><option>已售</option><option value="">全部状态</option></select></th>
+          </tr>
+        </thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 选择显示列弹窗 -->
+  <div id="colPickModal" class="modal-mask" style="display:none">
+    <div class="modal-box" style="width:660px;max-width:94vw;">
+      <div class="modal-head"><b>选择显示的列</b><button type="button" id="colPickClose" class="btn-ghost">关闭</button></div>
+      <div class="modal-body">
+        <div id="colPickList" class="col-pick-list"></div>
+        <div style="text-align:right;margin-top:12px;">
+          <button type="button" id="colPickAll" style="padding:7px 16px;border:1px solid #d9dde3;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-right:8px;">全选</button>
+          <button type="button" id="colPickReset" style="padding:7px 16px;border:1px solid #d9dde3;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">恢复默认</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 订单详情弹窗（点击订单号查看原单） -->
+  <div id="orderDetailModal" class="modal-mask" style="display:none">
+    <div class="modal-box" style="width:1120px;max-width:97vw;">
+      <div class="modal-head"><b id="odTitle">订单详情</b><button type="button" id="odClose" class="btn-ghost">关闭</button></div>
+      <div class="modal-body" style="max-height:85vh;overflow:auto;">
+        <div id="odInfo"></div>
+        <table id="odItemsTable">
+          <colgroup>
+            <col style="width:4%"><col style="width:8%"><col style="width:9%"><col style="width:17%">
+            <col style="width:5%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:27%">
+          </colgroup>
+          <thead><tr><th>序号</th><th>类别</th><th>品牌</th><th>型号规格</th><th>数量</th><th>单价</th><th>原价</th><th>总价</th><th>备注</th></tr></thead>
+          <tbody id="odBody"></tbody>
+        </table>
+        <div id="odSum"></div>
+        <div id="odNotes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 锁单弹窗（销售/经理标注锁单，经理必填说明） -->
+  <div id="lockModal" class="modal-mask" style="display:none">
+    <div class="modal-box">
+      <div class="modal-head"><b id="lockModalTitle">锁单确认</b><button type="button" id="lockModalClose">关闭</button></div>
+      <div id="lockModalTip" class="modal-tip"></div>
+      <div class="modal-body">
+        <div id="lockNoteWrap" style="display:none;">
+          <input id="lockNote" placeholder="锁单说明" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d9dde3;border-radius:6px;font-size:13px;">
+          <div id="lockNoteErr" style="color:#d33;font-size:12px;margin-top:6px;display:none;">请输入锁单说明</div>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:12px;">
+        <button type="button" id="lockModalCancel" style="padding:7px 16px;border:1px solid #d9dde3;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-right:8px;">取消</button>
+        <button type="button" id="lockModalOk" style="padding:7px 20px;border:none;border-radius:6px;background:#1667ff;color:#fff;cursor:pointer;font-size:13px;">确认锁单</button>
+      </div>
+    </div>
   </div>
 
   </div><!-- /app -->

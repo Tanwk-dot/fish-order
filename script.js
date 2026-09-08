@@ -13,6 +13,9 @@ const SUPABASE_URL = 'https://oiwbclaqpkgjuibesopf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_L-ngO6j5IEMBrUAHqn2xSg_sVVJZUl1';
 let sbClient = null;
 let currentUserName = '';
+let currentUid = '';
+let currentRole = 'sales';
+let currentEmail = '';
 
 function initCloud() {
   if (typeof supabase === 'undefined') { return; }
@@ -29,12 +32,45 @@ function showLogin() {
 function enterApp(user) {
   const u = user || null;
   if (!u) { showLogin(); return; }
+  currentUid = u.id;
+  currentEmail = u.email || '';
   currentUserName = (u.user_metadata && u.user_metadata.name) || u.email || '';
   document.getElementById('curUser').textContent = currentUserName;
   document.getElementById('owner').value = currentUserName; // 负责人 = 账号，自动带出
   document.getElementById('loginGate').style.display = 'none';
   document.getElementById('app').style.display = '';
   hideFieldErr('owner');
+  // 查角色：经理多显示"订单汇总"页签；现货表全员可见（销售只读）
+  sbClient.from('profiles').select('role').eq('id', u.id).single().then(function (res) {
+    currentRole = (res.data && res.data.role === 'admin') ? 'admin' : 'sales';
+    document.querySelectorAll('.admin-only').forEach(function (b) {
+      b.style.display = currentRole === 'admin' ? '' : 'none';
+    });
+    const stockAdd = document.querySelector('.stock-add');
+    if (stockAdd) stockAdd.style.display = currentRole === 'admin' ? '' : 'none';
+    // 标题/页签：经理=现货管理，销售=现货表
+    const stTitle = document.querySelector('.stock-title');
+    if (stTitle) stTitle.textContent = currentRole === 'admin' ? '现货管理' : '现货表';
+    const stTab = document.querySelector('[data-tab="stock"]');
+    if (stTab) stTab.textContent = currentRole === 'admin' ? '现货管理' : '现货表';
+    const hcStock = document.querySelector('.home-card[data-go="stock"] .hc-title');
+    if (hcStock) hcStock.textContent = currentRole === 'admin' ? '现货管理' : '现货表';
+    showTab('home');
+    const hu = document.getElementById('homeUser');
+    if (hu) hu.textContent = currentUserName;
+    loadStocks();
+  });
+}
+function showTab(name) {
+  ['home', 'form', 'summary', 'stock'].forEach(function (t) {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.style.display = (t === name) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-tab').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-tab') === name);
+  });
+  if (name === 'summary') loadOrders();
+  if (name === 'stock') loadStocks();
 }
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
@@ -49,6 +85,49 @@ async function doLogin() {
 function doLogout() {
   sbClient.auth.signOut().then(function () { showLogin(); });
 }
+// ---------- 修改密码 ----------
+function openPwdModal() {
+  document.getElementById('pwdMsg').textContent = '';
+  document.getElementById('oldPwd').value = '';
+  document.getElementById('newPwd').value = '';
+  document.getElementById('newPwd2').value = '';
+  document.getElementById('pwdModal').style.display = 'flex';
+  document.getElementById('oldPwd').focus();
+}
+async function savePwd() {
+  const msg = document.getElementById('pwdMsg');
+  const oldP = document.getElementById('oldPwd').value;
+  const np = document.getElementById('newPwd').value;
+  const np2 = document.getElementById('newPwd2').value;
+  msg.textContent = '';
+  if (!oldP || !np) { msg.textContent = '请填写当前密码和新密码'; return; }
+  if (np.length < 8) { msg.textContent = '新密码至少8位'; return; }
+  if (np !== np2) { msg.textContent = '两次输入的新密码不一致'; return; }
+  const pwdBtn = document.getElementById('pwdSave');
+  pwdBtn.disabled = true;
+  try {
+    if (!currentEmail) { msg.textContent = '无法获取账号，请重新登录'; return; }
+    const chk = await sbClient.auth.signInWithPassword({ email: currentEmail, password: oldP });
+    if (chk.error) { msg.textContent = '当前密码错误'; return; }
+    const up = await sbClient.auth.updateUser({ password: np });
+    if (up.error) { msg.textContent = '修改失败：' + (up.error.message || '未知错误'); return; }
+    msg.style.color = '#27ae60';
+    msg.textContent = '修改成功，下次登录请使用新密码';
+    setTimeout(function () {
+      document.getElementById('pwdModal').style.display = 'none';
+      msg.style.color = '#e74c3c';
+      msg.textContent = '';
+    }, 1500);
+  } catch (e) {
+    msg.textContent = '修改失败：' + (e.message || '未知错误');
+  } finally {
+    pwdBtn.disabled = false;
+  }
+}
+document.getElementById('chgPwdBtn').addEventListener('click', openPwdModal);
+document.getElementById('pwdClose').addEventListener('click', function () { document.getElementById('pwdModal').style.display = 'none'; });
+document.getElementById('pwdSave').addEventListener('click', savePwd);
+document.getElementById('newPwd2').addEventListener('keydown', function (e) { if (e.key === 'Enter') savePwd(); });
 
 // ---------- 取表格里所有明细行（三个 tbody 全部算上） ----------
 function allRows() {
@@ -1812,6 +1891,7 @@ orderForm.addEventListener('submit', function (e) {
         deposit_amount: parseFloat(d.deposit) || 0,
         deposit_date: d.depositDate || null,
         tail_amount: parseFloat(d.balance) || 0,
+        tank_no: d.tankNo,
         notes: d.remark,
         items: d.rows
       }).select('id');
@@ -1824,6 +1904,24 @@ orderForm.addEventListener('submit', function (e) {
       const orderNo = 'Dy' + ymd + '-' + String(id).padStart(4, '0');
       const { error: err2 } = await sbClient.from('orders').update({ order_no: orderNo }).eq('id', id);
       if (err2) throw err2;
+      // 选了现货编号：先校验锁单归属（仅锁单者本人可下单），再标记已售
+      if (d.tankNo) {
+        const { data: stChk, error: stErr } = await sbClient
+          .from('stocks').select('sn,status,locked_by,lock_note,locked_at')
+          .eq('sn', d.tankNo).limit(1);
+        if (stErr) throw stErr;
+        const st0 = stChk && stChk[0];
+        if (st0) {
+          const la = st0.locked_at ? new Date(st0.locked_at).getTime() : 0;
+          const isLocked = st0.status === '锁单' && la && (Date.now() - la) < 48 * 3600 * 1000;
+          if (isLocked && st0.locked_by !== d.owner) {
+            throw new Error('该鱼缸已被' + ((st0.lock_note || '') || st0.locked_by || '其他销售') + '锁单，仅锁单者可下单');
+          }
+          if (st0.status === '已售') throw new Error('该现货已售出，请重新选择鱼缸编号');
+        }
+        const { error: errS } = await sbClient.rpc('mark_stock_sold', { p_sn: d.tankNo, p_locked_by: d.owner });
+        if (errS) console.error('现货标记已售失败：', errS.message);
+      }
       document.getElementById('orderNo').textContent = orderNo;
       okMsg.textContent = '提交成功，订单号：' + orderNo;
       okMsg.style.display = 'block';
@@ -1892,6 +1990,7 @@ function collectFormData() {
     deposit: depositBox.value,
     depositDate: depositDateBox.value,
     balance: balanceBox.value,
+    tankNo: (document.getElementById('tankNo').value || '').trim(),
     remark: (bottomRemark.value || '').trim(),
     rows: []
   };
@@ -2430,3 +2529,819 @@ document.getElementById('loginBtn').addEventListener('click', doLogin);
 document.getElementById('loginPwd').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
 document.getElementById('logoutBtn').addEventListener('click', doLogout);
 initCloud();
+
+let lockCells = [];
+let lockTimer = null;
+function fmtRemain(ms) {
+  if (ms <= 0) return '00:00:00';
+  const t = Math.floor(ms / 1000);
+  const hh = String(Math.floor(t / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((t % 3600) / 60)).padStart(2, '0');
+  const ss = String(t % 60).padStart(2, '0');
+  return hh + ':' + mm + ':' + ss;
+}
+// 每秒刷新锁单倒计时
+function startLockTimer() {
+  if (lockTimer) { clearInterval(lockTimer); lockTimer = null; }
+  if (!lockCells.length) return;
+  lockTimer = setInterval(function () {
+    const now = Date.now();
+    lockCells.forEach(function (c) {
+      const el = document.querySelector('.lock-timer[data-end="' + c.endsAt + '"]');
+      if (el) el.textContent = fmtRemain(c.endsAt - now);
+    });
+  }, 1000);
+}
+// 锁单弹窗
+let lockTargetSn = '';
+function openLockModal(sn) {
+  lockTargetSn = sn;
+  const isAdmin = currentRole === 'admin';
+  document.getElementById('lockModalTitle').textContent = '锁单确认 - ' + sn;
+  document.getElementById('lockNoteWrap').style.display = isAdmin ? '' : 'none';
+  document.getElementById('lockNote').value = '';
+  document.getElementById('lockNoteErr').style.display = 'none';
+  document.getElementById('lockModalTip').textContent = isAdmin
+    ? '输入锁单说明（销售端将显示"说明 + 锁单 + 倒计时"）'
+    : '锁单持续 48 小时，期间其他销售不可再锁；确认锁单？';
+  document.getElementById('lockModal').style.display = 'flex';
+}
+function closeLockModal() {
+  document.getElementById('lockModal').style.display = 'none';
+}
+function askLockStock(sn) {
+  openLockModal(sn);
+}
+function askUnlockStock(sn) {
+  if (!confirm('确认取消现货「' + sn + '」的锁单？取消后您不能再锁这台鱼缸。')) return;
+  sbClient.rpc('unlock_stock', { p_sn: sn }).then(function (res) {
+    if (res.error) { alert('取消失败：' + (res.error.message || '')); return; }
+    const r = res.data || {};
+    alert(r.msg || (r.ok ? '已取消锁单' : '取消失败'));
+    loadStocks();
+  });
+}
+document.getElementById('lockModalClose').addEventListener('click', closeLockModal);
+document.getElementById('lockModalCancel').addEventListener('click', closeLockModal);
+document.getElementById('lockModalOk').addEventListener('click', function () {
+  const note = document.getElementById('lockNote').value.trim();
+  if (currentRole === 'admin' && !note) {
+    document.getElementById('lockNoteErr').style.display = '';
+    return;
+  }
+  sbClient.rpc('lock_stock', { p_sn: lockTargetSn, p_note: note }).then(function (res) {
+    if (res.error) { alert('锁单失败：' + (res.error.message || '')); return; }
+    const r = res.data || {};
+    alert(r.msg || (r.ok ? '锁单成功' : '锁单失败'));
+    if (r.ok) closeLockModal();
+    loadStocks();
+  });
+});
+
+let allStocks = [];
+let stockMap = {};
+// 解析现货备注（"柜体:xx | 岩板:xx | 溢流:xx | 底滤:xx [| 柜门/底柜:xx]"）到各列
+function parseStockRemark(remark) {
+  const r = { cabinet: '', rock: '', flow: '', filter: '', extra: '' };
+  if (!remark) return r;
+  String(remark).split(' | ').forEach(function (part) {
+    const i = part.indexOf(':');
+    if (i < 0) return;
+    const k = part.slice(0, i);
+    const v = part.slice(i + 1);
+    if (k === '柜体') r.cabinet = v;
+    else if (k === '岩板') r.rock = v;
+    else if (k === '溢流') r.flow = v;
+    else if (k === '底滤') r.filter = v;
+    else r.extra = (r.extra ? r.extra + ' / ' : '') + v; // 柜门（中鼎）/ 底柜（满堂鸿）
+  });
+  return r;
+}
+function renderStocks() {
+  const tb = document.getElementById('stockBody');
+  if (!tb) return;
+  const g = function (id) { return document.getElementById(id); };
+  const fs = g('fStockStatus').value;
+  const fb = g('fStockBrand').value;
+  const fm = g('fStockModel').value;
+  const fCab = g('fStockCabinet').value;
+  const fRock = g('fStockRock').value;
+  const fFlow = g('fStockFlow').value;
+  const fFil = g('fStockFilter').value;
+  const fSn = (g('fStockSn').value || '').trim().toLowerCase();
+  const rows = allStocks.filter(function (st) {
+    if (fs === '__unsold__' && st.status === '已售') return false;
+    if (fs !== '__unsold__' && fs && st.status !== fs) return false;
+    if (fb && st.brand !== fb) return false;
+    if (fm && st.model !== fm) return false;
+    if (fSn && String(st.sn).toLowerCase().indexOf(fSn) < 0) return false;
+    const rk = parseStockRemark(st.remark);
+    if (fCab && rk.cabinet !== fCab) return false;
+    if (fRock && rk.rock !== fRock) return false;
+    if (fFlow && rk.flow !== fFlow) return false;
+    if (fFil && rk.filter !== fFil) return false;
+    return true;
+  });
+  if (allStocks.length === 0) {
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px;">暂无现货，先添加一条</td></tr>';
+    return;
+  }
+  if (rows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px;">没有符合筛选条件的现货</td></tr>';
+    return;
+  }
+  // 默认排序：二手沉底 → 品牌 → 型号 → 柜体 → 岩板 → 溢流 → 底滤
+  rows.sort(function (a, b) {
+    const ka = a.status === '二手' ? 1 : 0;
+    const kb = b.status === '二手' ? 1 : 0;
+    if (ka !== kb) return ka - kb;
+    if ((a.brand || '') !== (b.brand || '')) return (a.brand || '').localeCompare(b.brand || '', 'zh-CN');
+    if ((a.model || '') !== (b.model || '')) return (a.model || '').localeCompare(b.model || '', 'zh-CN');
+    const ra = parseStockRemark(a.remark), rb = parseStockRemark(b.remark);
+    if (ra.cabinet !== rb.cabinet) return ra.cabinet.localeCompare(rb.cabinet, 'zh-CN');
+    if (ra.rock !== rb.rock) return ra.rock.localeCompare(rb.rock, 'zh-CN');
+    if (ra.flow !== rb.flow) return ra.flow.localeCompare(rb.flow, 'zh-CN');
+    return ra.filter.localeCompare(rb.filter, 'zh-CN');
+  });
+  let h = '';
+  const canDel = currentRole === 'admin';
+  const now = Date.now();
+  lockCells = [];
+  rows.forEach(function (st) {
+    const rk = parseStockRemark(st.remark);
+    const filterCell = rk.filter + (rk.extra ? ' / ' + rk.extra : '');
+    let statusHtml = '';
+    let statusCls = 'old';
+    let lockedRemain = -1;
+    let endsAt = 0;
+    if (st.status === '锁单' && st.locked_at) {
+      endsAt = new Date(st.locked_at).getTime() + 48 * 3600 * 1000;
+      lockedRemain = endsAt - now;
+    }
+    if (st.status === '锁单' && lockedRemain > 0) {
+      const who = (st.lock_note || '') || (st.locked_by || '');
+      statusHtml = esc(who + ' 锁单') + ' <span class="lock-timer" data-end="' + endsAt + '">' + fmtRemain(lockedRemain) + '</span>';
+      statusCls = 'locked';
+    } else {
+      const eff = (st.status === '锁单') ? (st.prev_status || '') : st.status;
+      statusHtml = esc(eff);
+      statusCls = eff === '现货在家' || eff === '现货在工厂' ? 'home' : eff === '二手' ? 'second' : eff === '已售' ? 'sold' : 'old';
+    }
+    // 悬浮按钮：未售未锁 → 锁单；自己的未过期锁单 → 取消锁单
+    let opBtn = '';
+    if (st.status !== '已售' && st.status !== '锁单') {
+      opBtn = '<button class="lock-float lock-stock" data-sn="' + esc(st.sn) + '" type="button" title="锁单">锁单</button>';
+    } else if (st.status === '锁单' && lockedRemain > 0 && st.locked_by === currentUserName) {
+      opBtn = '<button class="lock-float unlock-stock" data-sn="' + esc(st.sn) + '" type="button" title="取消锁单">取消锁单</button>';
+    }
+    h += '<tr>'
+      + '<td class="no">' + (canDel ? '<button class="del-btn del-stock" data-id="' + st.id + '" type="button" title="删除此条现货">✕</button>' : '') + '<span>' + esc(st.sn) + '</span></td>'
+      + '<td>' + esc(st.brand) + '</td>'
+      + '<td>' + esc(st.model) + '</td>'
+      + '<td>' + esc(rk.cabinet) + '</td>'
+      + '<td>' + esc(rk.rock) + '</td>'
+      + '<td>' + esc(rk.flow) + '</td>'
+      + '<td>' + esc(filterCell) + '</td>'
+      + '<td class="st-' + statusCls + ' st-op-cell">' + opBtn + '<span>' + statusHtml + '</span></td>'
+      + '</tr>';
+    if (st.status === '锁单' && lockedRemain > 0 && statusCls === 'locked') {
+      lockCells.push({ sn: st.sn, endsAt: endsAt });
+    }
+  });
+  tb.innerHTML = h;
+  if (canDel) {
+    tb.querySelectorAll('.del-stock').forEach(function (btn) {
+      btn.addEventListener('click', function () { delStock(btn.getAttribute('data-id')); });
+    });
+  }
+  tb.querySelectorAll('.lock-stock').forEach(function (btn) {
+    btn.addEventListener('click', function () { askLockStock(btn.getAttribute('data-sn')); });
+  });
+  tb.querySelectorAll('.unlock-stock').forEach(function (btn) {
+    btn.addEventListener('click', function () { askUnlockStock(btn.getAttribute('data-sn')); });
+  });
+  startLockTimer();
+}
+function loadStocks() {
+  sbClient.from('stocks').select('*').then(function (res) {
+    if (res.error) {
+      const m = document.getElementById('stockMsg');
+      if (m) m.textContent = '现货加载失败：' + (res.error.message || '网络错误');
+      return;
+    }
+    const data = res.data || [];
+    // ① 销售端：鱼缸编号下拉（已售的不再可选；锁单中的加标记）
+    const dl = document.getElementById('tankNoList');
+    if (dl) {
+      dl.innerHTML = '';
+      stockMap = {};
+      data.filter(function (st) { return st.status !== '已售'; }).forEach(function (st) {
+        const opt = document.createElement('option');
+        opt.value = st.sn;
+        const locked = (st.status === '锁单' && st.locked_at && Date.now() - new Date(st.locked_at).getTime() < 48 * 3600 * 1000)
+          ? '（' + (st.locked_by || '') + ' 锁单中）' : '';
+        opt.label = (st.brand ? st.brand + ' ' : '') + (st.model || '') + locked;
+        dl.appendChild(opt);
+        stockMap[st.sn] = { brand: st.brand || '', model: st.model || '', remark: st.remark || '' };
+      });
+    }
+    // ② 经理端：现货管理表格
+    allStocks = data;
+    buildStockFilters();
+    const tb = document.getElementById('stockBody');
+    if (tb) renderStocks();
+  });
+}
+
+// 重建筛选下拉选项（型号/柜体/岩板/溢流/底滤从现有现货动态收集；品牌固定 5 品牌+其他）
+function buildStockFilters() {
+  const g = function (id) { return document.getElementById(id); };
+  const fb = g('fStockBrand');
+  if (fb && fb.options.length === 1) { // 品牌只在首次填充（固定列表）
+    for (const bname in (productData['鱼缸'] || {})) {
+      const op = document.createElement('option');
+      op.value = bname; op.textContent = bname;
+      fb.appendChild(op);
+    }
+    const oo = document.createElement('option');
+    oo.value = '其他'; oo.textContent = '其他';
+    fb.appendChild(oo);
+  }
+  const rebuild = function (id, field, withPlaceholder) {
+    const sel = g(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = withPlaceholder ? '<option value="">全部' + withPlaceholder + '</option>' : '';
+    const seen = {};
+    allStocks.forEach(function (st) {
+      let v = '';
+      if (field === 'model') v = st.model || '';
+      else if (field === 'cabinet') v = parseStockRemark(st.remark).cabinet;
+      else if (field === 'rock') v = parseStockRemark(st.remark).rock;
+      else if (field === 'flow') v = parseStockRemark(st.remark).flow;
+      else if (field === 'filter') v = parseStockRemark(st.remark).filter;
+      if (!v || seen[v]) return;
+      seen[v] = 1;
+      const op = document.createElement('option');
+      op.value = v; op.textContent = v;
+      sel.appendChild(op);
+    });
+    if (cur && seen[cur]) sel.value = cur;
+  };
+  rebuild('fStockModel', 'model', '型号');
+  rebuild('fStockCabinet', 'cabinet', '柜体');
+  rebuild('fStockRock', 'rock', '岩板');
+  rebuild('fStockFlow', 'flow', '溢流');
+  rebuild('fStockFilter', 'filter', '底滤');
+}
+function initStockForm() {
+  const bSel = document.getElementById('sBrandSel');
+  const bMan = document.getElementById('sBrandMan');
+  const mSel = document.getElementById('sModelSel');
+  const mMan = document.getElementById('sModelMan');
+  // 现货只记录鱼缸：品牌/型号与订单表鱼缸行一致，默认都不选
+  fillBrandSelect(bSel, '鱼缸');
+  bSel.innerHTML = '<option value="">请选择品牌</option>' + bSel.innerHTML;
+  bSel.selectedIndex = 0;
+  mSel.innerHTML = '<option value="">型号规格</option>';
+  fillStockFishOpts('');
+  bSel.addEventListener('change', function () {
+    const v = bSel.value;
+    if (v === '__other__') {
+      bMan.style.display = '';
+      mSel.innerHTML = '<option value="">型号规格</option>'; mSel.value = '';
+      mSel.disabled = true; // 品牌为"其他"时型号规格改为手动输入
+      mMan.style.display = ''; mMan.value = '';
+      fillStockFishOpts('__other__');
+      return;
+    }
+    bMan.style.display = 'none'; bMan.value = '';
+    mSel.disabled = false;
+    fillModelSelect(mSel, '鱼缸', v);
+    mSel.innerHTML = '<option value="">型号规格</option>' + mSel.innerHTML;
+    mSel.selectedIndex = 0;
+    mMan.style.display = 'none'; mMan.value = '';
+    fillStockFishOpts(v, '');
+  });
+  mSel.addEventListener('change', function () {
+    if (mSel.value === '__other__') { mMan.style.display = ''; fillStockFishOpts(bSel.value, '', true); return; }
+    mMan.style.display = 'none'; mMan.value = '';
+    fillStockFishOpts(bSel.value, mSel.value, true);
+  });
+}
+
+// 现货备注下拉：与订单表鱼缸行一致（按品牌 4 个或 5 个），选项带灰色提示、单选项自动选中
+function fillStockFishOpts(brand, model, keepValues) {
+  const box = document.getElementById('stockFishOpts');
+  if (!box) return;
+  const prev = {};
+  if (keepValues) {
+    box.querySelectorAll('select').forEach(function (s) { prev[s.getAttribute('data-fish')] = s.value; });
+  }
+  box.innerHTML = '';
+  // 品牌为"其他"：柜体/岩板/溢流方向/底滤 全部手动填写
+  if (brand === '__other__') {
+    const labels = [['cabinet', '柜体'], ['rock', '岩板'], ['flow', '溢流方向'], ['filter', '底滤']];
+    labels.forEach(function (kv) {
+      const inp = document.createElement('input');
+      inp.className = 'stock-man-opt';
+      inp.setAttribute('data-fish', kv[0]);
+      inp.placeholder = kv[1];
+      inp.style.width = '90px';
+      box.appendChild(inp);
+    });
+    return;
+  }
+  const cfg = fishConfig[brand];
+  if (!cfg) return;
+  const mk = function (key, list, ph) {
+    const sel = document.createElement('select');
+    sel.setAttribute('data-fish', key);
+    fillFishDropdown(sel, list || [], ph);
+    box.appendChild(sel);
+    return sel;
+  };
+  const type = fishTypeOf(model);
+  // 与订单表一致：优先按缸型取，再退品牌级
+  const pickOpts = function (key) {
+    const byType = cfg[key + 'ByType'];
+    if (byType && type && byType[type]) return byType[type];
+    return cfg[key] || [];
+  };
+  mk('cabinet', pickOpts('cabinet'), '柜体颜色');
+  if (cfg.door && cfg.door.length) mk('door', cfg.door, '柜门款式');
+  mk('rock', pickOpts('rock'), '岩板颜色');
+  mk('flow', pickOpts('flow'), '溢流方向');
+  const filterList = (cfg.filterMap && cfg.filterMap[model]) || cfg.filter || [];
+  mk('filter', filterList, '底滤');
+  if (cfg.baseMap && model && cfg.baseMap[model] && cfg.baseMap[model].length) {
+    mk('base', cfg.baseMap[model], '底柜');
+  }
+  // 保留原值 / 单选项自动选中（与订单表一致）
+  box.querySelectorAll('select').forEach(function (sel) {
+    const k = sel.getAttribute('data-fish');
+    if (prev[k]) {
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value !== '' && sel.options[i].value === prev[k]) { sel.value = prev[k]; break; }
+      }
+    } else {
+      const rs = Array.prototype.filter.call(sel.options, function (o) { return o.value !== ''; });
+      if (rs.length === 1) sel.value = rs[0].value;
+    }
+  });
+}
+
+function addStock() {
+  const sn = document.getElementById('sSn').value.trim();
+  if (!sn) { document.getElementById('stockMsg').textContent = '编号不能为空'; return; }
+  const bSel = document.getElementById('sBrandSel');
+  const bMan = document.getElementById('sBrandMan');
+  const mSel = document.getElementById('sModelSel');
+  const mMan = document.getElementById('sModelMan');
+  const isOtherBrand = bSel.value === '__other__';
+  const brand = isOtherBrand ? bMan.value.trim() : bSel.value;
+  const model = isOtherBrand ? mMan.value.trim() : ((mSel.value === '__other__') ? mMan.value.trim() : mSel.value);
+  if (!brand) { document.getElementById('stockMsg').textContent = '请选择或填写品牌'; return; }
+  if (!model && !isOtherBrand) { document.getElementById('stockMsg').textContent = '请选择或填写型号规格'; return; }
+  const labelMap = { cabinet: '柜体', door: '柜门', rock: '岩板', flow: '溢流', filter: '底滤', base: '底柜' };
+  let remark = '';
+  if (isOtherBrand) {
+    // 品牌=其他：备注为手动输入，有值才拼接，非必填
+    const ins = document.querySelectorAll('#stockFishOpts input.stock-man-opt');
+    const parts = [];
+    ins.forEach(function (i) {
+      const t = i.value.trim();
+      if (t) parts.push((labelMap[i.getAttribute('data-fish')] || '') + ':' + t);
+    });
+    remark = parts.join(' | ');
+  } else {
+    // 备注下拉必选（与提交表一致，按品牌 4/5 个）
+    const optSels = document.querySelectorAll('#stockFishOpts select');
+    let allPicked = true;
+    optSels.forEach(function (s) { if (!s.value) allPicked = false; });
+    if (!allPicked) {
+      document.getElementById('stockOptsMsg').style.display = '';
+      return;
+    }
+    remark = Array.prototype.map.call(optSels, function (s) {
+      return (labelMap[s.getAttribute('data-fish')] || '') + ':' + s.value;
+    }).join(' | ');
+  }
+  const status = document.getElementById('sStatus').value;
+  sbClient.from('stocks').insert({ sn: sn, brand: brand, model: model, status: status, remark: remark }).select('id').then(function (res) {
+    const msg = document.getElementById('stockMsg');
+    if (res.error) { msg.textContent = '添加失败：' + (res.error.message || ''); return; }
+    msg.textContent = '';
+    document.getElementById('stockOptsMsg').style.display = 'none';
+    document.getElementById('sSn').value = '';
+    bSel.value = ''; bMan.value = ''; bMan.style.display = 'none';
+    mSel.innerHTML = '<option value="">型号规格</option>'; mSel.value = ''; mSel.disabled = false; mMan.value = ''; mMan.style.display = 'none';
+    fillStockFishOpts('');
+    loadStocks();
+  });
+}
+function delStock(id) {
+  if (!confirm('确定删除这条现货？')) return;
+  sbClient.from('stocks').delete().eq('id', id).then(function (res) {
+    if (res.error) { document.getElementById('stockMsg').textContent = '删除失败：' + (res.error.message || ''); return; }
+    loadStocks();
+  });
+}
+// 锁定/解锁鱼缸行（品牌、型号、备注下拉）
+function setFishRowLocked(locked) {
+  const fishRow = document.querySelector('#topRows tr');
+  if (!fishRow) return;
+  fishRow.querySelectorAll('.brand, .model, .fish-opt').forEach(function (sel) {
+    sel.disabled = !!locked;
+    if (locked) sel.classList.add('locked-stock');
+    else sel.classList.remove('locked-stock');
+  });
+}
+// 把现货备注解析后的值填进鱼缸行备注下拉
+function fillFishFromRemark(row, remark) {
+  if (!remark) return;
+  const rk = parseStockRemark(remark);
+  const set = function (key, val) {
+    if (!val) return;
+    const sel = row.querySelector('.fish-opt[data-fish="' + key + '"]');
+    if (!sel) return;
+    const has = Array.prototype.some.call(sel.options, function (o) { return o.value === val; });
+    if (has) sel.value = val;
+  };
+  set('cabinet', rk.cabinet);
+  set('rock', rk.rock);
+  set('flow', rk.flow);
+  set('filter', rk.filter);
+  if (rk.extra) {
+    set('door', rk.extra);
+    if (!row.querySelector('.fish-opt[data-fish="door"]')) set('base', rk.extra);
+  }
+}
+// 选中现货编号：品牌、型号、备注全部带出，鱼缸一栏锁定不允许修改；手填/清空则恢复可编辑
+document.getElementById('tankNo').addEventListener('change', function () {
+  const v = this.value.trim();
+  const info = stockMap[v];
+  const fishRow = document.querySelector('#topRows tr');
+  if (!fishRow) return;
+  if (!info) { // 手填或清空：解锁鱼缸行
+    setFishRowLocked(false);
+    return;
+  }
+  const brandSel = fishRow.querySelector('.brand');
+  if (brandSel && info.brand) {
+    const hasB = Array.prototype.some.call(brandSel.options, function (o) { return o.value === info.brand; });
+    if (hasB) {
+      brandSel.value = info.brand;
+      brandSel.dispatchEvent(new Event('change', { bubbles: true }));
+      const modelSel = fishRow.querySelector('.model');
+      if (modelSel && info.model) {
+        setTimeout(function () {
+          const hasM = Array.prototype.some.call(modelSel.options, function (o) { return o.value === info.model; });
+          if (hasM) {
+            modelSel.value = info.model;
+            modelSel.dispatchEvent(new Event('change', { bubbles: true }));
+            // 型号确定后填备注，再锁定
+            setTimeout(function () {
+              fillFishFromRemark(fishRow, info.remark);
+              setFishRowLocked(true);
+            }, 350);
+          } else {
+            setFishRowLocked(true);
+          }
+        }, 250);
+      }
+    }
+  }
+});
+// 手填变化时消掉校验提示
+document.getElementById('tankNo').addEventListener('input', function () { hideFieldErr('tankNo'); });
+
+// ---------- 订单汇总（仅经理） ----------
+function esc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function fmtMoney(v) {
+  const n = parseFloat(v) || 0;
+  return n.toFixed(2);
+}
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p2 = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+function leadDays(o) {
+  if (!o.order_date || !o.deliver_date) return '';
+  const a = new Date(o.order_date + 'T00:00:00');
+  const b = new Date(o.deliver_date + 'T00:00:00');
+  if (isNaN(a) || isNaN(b)) return '';
+  const diff = Math.round((b - a) / 86400000);
+  return diff >= 0 ? diff + ' 天' : '';
+}
+let allOrders = [];
+// 汇总列定义（用于"选择显示列"）
+const SUM_COLS = [
+  { k: 'orderNo', t: '订单号', get: function (o) { return o.order_no; } },
+  { k: 'created', t: '提交时间', get: function (o) { return fmtDateTime(o.created_at); } },
+  { k: 'owner', t: '负责人', get: function (o) { return o.owner; } },
+  { k: 'customer', t: '客户', get: function (o) { return o.customer; } },
+  { k: 'phone', t: '电话', get: function (o) { return o.phone; } },
+  { k: 'address', t: '地址', get: function (o) { return o.address; } },
+  { k: 'orderDate', t: '下单日期', get: function (o) { return o.order_date || ''; } },
+  { k: 'deliver', t: '交付日期', get: function (o) { return o.deliver_date || ''; } },
+  { k: 'lead', t: '交货周期', get: function (o) { return leadDays(o); } },
+  { k: 'final', t: '最终价格', num: true, get: function (o) { return fmtMoney(o.final_price); } },
+  { k: 'pay', t: '定金方式', get: function (o) { return o.deposit_method || ''; } },
+  { k: 'deposit', t: '定金金额', num: true, get: function (o) { return fmtMoney(o.deposit_amount); } },
+  { k: 'depositDate', t: '定金日期', get: function (o) { return o.deposit_date || ''; } },
+  { k: 'tail', t: '尾款', num: true, get: function (o) { return orderTail(o); } },
+  { k: 'remark', t: '备注', get: function (o) { return o.notes || ''; } }
+];
+const SUM_COL_KEY = 'fish_sum_cols';
+function orderTail(o) {
+  return (o.final_price != null && o.deposit_amount != null)
+    ? fmtMoney(parseFloat(o.final_price) - parseFloat(o.deposit_amount)) : '';
+}
+function defaultCols() { return SUM_COLS.map(function (c) { return c.k; }); }
+function loadCols() {
+  try {
+    const raw = localStorage.getItem(SUM_COL_KEY);
+    if (raw) {
+      const a = JSON.parse(raw);
+      if (Array.isArray(a) && a.length) {
+        const kept = a.filter(function (k) { return SUM_COLS.some(function (c) { return c.k === k; }); });
+        if (kept.length) return kept;
+      }
+    }
+  } catch (e) {}
+  return defaultCols();
+}
+function saveCols(arr) { try { localStorage.setItem(SUM_COL_KEY, JSON.stringify(arr)); } catch (e) {} }
+
+function loadOrders() {
+  let q = sbClient.from('orders').select('*');
+  if (currentRole !== 'admin') q = q.eq('user_id', currentUid); // 销售只看自己负责的订单
+  q.order('id', { ascending: false }).then(function (res) {
+    if (res.error) { document.getElementById('errMsg').textContent = '加载失败：' + (res.error.message || '网络错误'); return; }
+    allOrders = res.data || [];
+    render();
+  });
+}
+function render() {
+  const cols = loadCols().map(function (k) {
+    for (let i = 0; i < SUM_COLS.length; i++) if (SUM_COLS[i].k === k) return SUM_COLS[i];
+    return null;
+  }).filter(Boolean);
+  document.getElementById('sumHeadRow').innerHTML = cols.map(function (c) { return '<th>' + c.t + '</th>'; }).join('');
+  const tbody = document.getElementById('ordersBody');
+  let sumFinal = 0, sumDeposit = 0;
+  allOrders.forEach(function (o) {
+    sumFinal += parseFloat(o.final_price) || 0;
+    sumDeposit += parseFloat(o.deposit_amount) || 0;
+  });
+  document.getElementById('orderCount').textContent = allOrders.length;
+  document.getElementById('sumFinal').textContent = fmtMoney(sumFinal);
+  document.getElementById('sumDeposit').textContent = fmtMoney(sumDeposit);
+  document.getElementById('sumDue').textContent = fmtMoney(sumFinal - sumDeposit);
+  document.getElementById('count').textContent = '共 ' + allOrders.length + ' 单';
+  if (!allOrders.length) {
+    tbody.innerHTML = '<tr><td colspan="' + cols.length + '" class="empty">暂无订单数据</td></tr>';
+    return;
+  }
+  let h = '';
+  allOrders.forEach(function (o) {
+    let tds = '';
+    cols.forEach(function (c) {
+      if (c.k === 'orderNo') {
+        tds += '<td><a href="javascript:void(0)" class="order-link" data-id="' + o.id + '">' + esc(o.order_no) + '</a></td>';
+      } else {
+        tds += '<td class="' + (c.num ? 'num' : '') + '">' + esc(c.get(o)) + '</td>';
+      }
+    });
+    h += '<tr>' + tds + '</tr>';
+  });
+  tbody.innerHTML = h;
+  tbody.querySelectorAll('.order-link').forEach(function (a) {
+    a.addEventListener('click', function () { openOrderDetail(a.getAttribute('data-id')); });
+  });
+  autoFitCols(document.getElementById('ordersTable'));
+}
+// 按内容自动调整每列宽度：短内容压缩整页显示；超长内容（如地址/备注）换行，避免横向拉
+function autoFitCols(table) {
+  if (!table) return;
+  const MAX_COL = 260;
+  const n = table.rows.length ? table.rows[0].cells.length : 0;
+  if (!n) return;
+  const widths = [];
+  for (let i = 0; i < n; i++) {
+    let max = 0;
+    for (let r = 0; r < table.rows.length; r++) {
+      const c = table.rows[r].cells[i];
+      if (c) max = Math.max(max, c.scrollWidth || 0);
+    }
+    widths.push(max);
+  }
+  const overflowFlags = [];
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    const ov = widths[i] > MAX_COL;
+    overflowFlags.push(ov);
+    const w = ov ? MAX_COL : widths[i];
+    total += w + 14;
+  }
+  // 总宽超过容器时等比压缩到一页（每列保底下限，超长列已换行）
+  const scroll = table.closest ? table.closest('.table-scroll') : null;
+  const containerW = scroll ? scroll.clientWidth : 0;
+  let scale = 1;
+  if (containerW > 100 && total > containerW) {
+    scale = Math.max(containerW / total, 0.45);
+  }
+  const MIN_COL = 58;
+  for (let i = 0; i < n; i++) {
+    const w = Math.max((overflowFlags[i] ? MAX_COL : widths[i]) * scale, MIN_COL);
+    for (let r = 0; r < table.rows.length; r++) {
+      const c = table.rows[r].cells[i];
+      if (c) {
+        c.style.minWidth = (w + 14) + 'px';
+        c.style.whiteSpace = overflowFlags[i] ? 'normal' : 'nowrap';
+      }
+    }
+  }
+}
+function exportCsv() {
+  if (!allOrders.length) { alert('当前没有订单可导出'); return; }
+  const head = ['订单号', '提交时间', '负责人', '客户', '电话', '地址', '下单日期', '交付日期', '交货周期', '合计原价', '合计金额', '最终价格', '定金方式', '定金金额', '定金日期', '尾款', '备注'];
+  const lines = [head.join(',')];
+  allOrders.forEach(function (o) {
+    const vals = [
+      o.order_no, fmtDateTime(o.created_at), o.owner, o.customer, o.phone, o.address,
+      o.order_date || '', o.deliver_date || '', leadDays(o),
+      fmtMoney(o.total_orig), fmtMoney(o.total_amount), fmtMoney(o.final_price),
+      o.deposit_method || '', fmtMoney(o.deposit_amount), o.deposit_date || '', orderTail(o), o.notes || ''
+    ];
+    lines.push(vals.map(function (v) {
+      v = String(v == null ? '' : v);
+      if (/[",\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+      return v;
+    }).join(','));
+  });
+  const csv = '\uFEFF' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  const now = new Date();
+  const p2 = (n) => String(n).padStart(2, '0');
+  a.href = URL.createObjectURL(blob);
+  a.download = '订单汇总_' + now.getFullYear() + p2(now.getMonth() + 1) + p2(now.getDate()) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+// ---------- 选择显示列 ----------
+function renderColPickList() {
+  const cur = loadCols();
+  const box = document.getElementById('colPickList');
+  box.innerHTML = '';
+  SUM_COLS.forEach(function (c) {
+    const lab = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = c.k;
+    cb.checked = cur.indexOf(c.k) >= 0;
+    cb.addEventListener('change', function () {
+      const now = loadCols();
+      let next;
+      if (cb.checked) {
+        // 按 SUM_COLS 原始顺序恢复位置，而不是追加到末尾
+        next = SUM_COLS.map(function (c) { return c.k; }).filter(function (k) {
+          return now.indexOf(k) >= 0 || k === cb.value;
+        });
+      } else {
+        next = now.filter(function (k) { return k !== cb.value; });
+      }
+      saveCols(next);
+      render();
+    });
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(c.t));
+    box.appendChild(lab);
+  });
+}
+function openColPick() { renderColPickList(); document.getElementById('colPickModal').style.display = 'flex'; }
+function closeColPick() { document.getElementById('colPickModal').style.display = 'none'; }
+function bindColPick() {
+  document.getElementById('colPickBtn').addEventListener('click', openColPick);
+  document.getElementById('colPickClose').addEventListener('click', closeColPick);
+  document.getElementById('colPickModal').addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'colPickModal') closeColPick();
+  });
+  document.getElementById('colPickAll').addEventListener('click', function () {
+    saveCols(defaultCols()); renderColPickList(); render();
+  });
+  document.getElementById('colPickReset').addEventListener('click', function () {
+    saveCols(defaultCols()); renderColPickList(); render();
+  });
+}
+
+// ---------- 订单详情弹窗（点击订单号查看原单） ----------
+function openOrderDetail(id) {
+  sbClient.from('orders').select('*').eq('id', id).limit(1).then(function (res) {
+    if (res.error || !res.data || !res.data[0]) { alert('加载订单失败'); return; }
+    const o = res.data[0];
+    document.getElementById('odTitle').textContent = '订单详情 - ' + (o.order_no || '');
+    // 与填写时一致的只读视图
+    const val = function (v) { return '<div class="od-val">' + esc(v == null ? '' : v) + '</div>'; };
+    document.getElementById('odInfo').innerHTML =
+      '<div class="od-detail">'
+      + '<div class="order-no">订单号：<span>' + esc(o.order_no) + '</span></div>'
+      + '<h1>客 户 订 货 确 认 单</h1>'
+      + '<div class="info-block"><div class="row">'
+      + '<div class="field"><label>客户</label>' + val(o.customer) + '</div>'
+      + '<div class="field"><label>电话</label>' + val(o.phone) + '</div>'
+      + '<div class="field"><label>下单日期</label>' + val(o.order_date || '') + '</div>'
+      + '<div class="field"><label>预计交付日期</label>' + val(o.deliver_date || '') + '</div>'
+      + '</div><div class="row">'
+      + '<div class="field wide"><label>收货地址</label>' + val(o.address) + '</div>'
+      + '<div class="field"><label>交货周期</label>' + val(leadDays(o)) + '</div>'
+      + '<div class="field"><label>负责人</label>' + val(o.owner) + '</div>'
+      + '<div class="field"><label>鱼缸编号</label>' + val(o.tank_no || '') + '</div>'
+      + '</div></div></div>';
+    const items = o.items || [];
+    let h = '';
+    items.forEach(function (it, i) {
+      h += '<tr>'
+        + '<td>' + (i + 1) + '</td>'
+        + '<td>' + esc(it.cat || '') + '</td>'
+        + '<td>' + esc(it.brand || '') + '</td>'
+        + '<td>' + esc(it.model || '') + '</td>'
+        + '<td>' + esc(it.qty) + '</td>'
+        + '<td>' + fmtMoney(it.price) + '</td>'
+        + '<td>' + fmtMoney(it.orig) + '</td>'
+        + '<td>' + fmtMoney(it.amount) + '</td>'
+        + '<td>' + esc(it.remark || '') + '</td>'
+        + '</tr>';
+    });
+    if (!items.length) h = '<tr><td colspan="9" class="empty">无明细</td></tr>';
+    document.getElementById('odBody').innerHTML = h;
+    const tail = (o.final_price != null && o.deposit_amount != null)
+      ? (parseFloat(o.final_price) - parseFloat(o.deposit_amount)) : null;
+    document.getElementById('odSum').innerHTML =
+      '<div class="total-area">'
+      + '<div class="total-row"><span class="total-label">合计原价（元）</span><div class="od-val num">' + fmtMoney(o.total_orig) + '</div></div>'
+      + '<div class="total-row"><span class="total-label">合计金额（元）</span><div class="od-val num">' + fmtMoney(o.total_amount) + '</div></div>'
+      + '<div class="total-row"><span class="total-label">最终价格（元）</span><div class="od-val num">' + fmtMoney(o.final_price) + '</div></div>'
+      + '</div>';
+    document.getElementById('odNotes').innerHTML =
+      '<div class="info-block"><div class="row">'
+      + '<div class="field"><label>定金 · 收款方式</label>' + val(o.deposit_method || '') + '</div>'
+      + '<div class="field"><label>定金 · 收款金额</label><div class="od-val num">' + fmtMoney(o.deposit_amount) + '</div></div>'
+      + '<div class="field"><label>定金 · 收款日期</label>' + val(o.deposit_date || '') + '</div>'
+      + '<div class="field"><label>尾款</label><div class="od-val num">' + (tail == null ? '' : fmtMoney(tail)) + '</div></div>'
+      + '</div></div>'
+      + '<div class="info-block"><div class="row"><div class="field wide"><label>备注</label><div class="od-val multi">' + esc(o.notes || '') + '</div></div></div></div>';
+    document.getElementById('orderDetailModal').style.display = 'flex';
+  });
+}
+function closeOrderDetail() { document.getElementById('orderDetailModal').style.display = 'none'; }
+
+// ---------- 页签与经理按钮绑定 ----------
+document.querySelectorAll('.nav-tab').forEach(function (b) {
+  b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
+});
+document.querySelectorAll('.home-card').forEach(function (c) {
+  c.addEventListener('click', function () { showTab(c.getAttribute('data-go')); });
+});
+document.getElementById('refreshBtn').addEventListener('click', loadOrders);
+document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+bindColPick();
+document.getElementById('odClose').addEventListener('click', closeOrderDetail);
+document.getElementById('orderDetailModal').addEventListener('click', function (e) {
+  if (e.target && e.target.id === 'orderDetailModal') closeOrderDetail();
+});
+document.getElementById('addStockBtn').addEventListener('click', addStock);
+document.getElementById('fStockSn').addEventListener('input', renderStocks);
+document.getElementById('fStockModel').addEventListener('change', renderStocks);
+document.getElementById('fStockCabinet').addEventListener('change', renderStocks);
+document.getElementById('fStockRock').addEventListener('change', renderStocks);
+document.getElementById('fStockFlow').addEventListener('change', renderStocks);
+document.getElementById('fStockFilter').addEventListener('change', renderStocks);
+document.getElementById('fStockStatus').addEventListener('change', renderStocks);
+// 品牌联动型号：选品牌后型号只列该品牌的
+document.getElementById('fStockBrand').addEventListener('change', function () {
+  const fb = document.getElementById('fStockBrand');
+  const fm = document.getElementById('fStockModel');
+  const bv = fb.value;
+  fm.innerHTML = '<option value="">全部型号</option>';
+  const seen = {};
+  allStocks.forEach(function (st) {
+    if (bv && st.brand !== bv) return;
+    if (!st.model || seen[st.model]) return;
+    seen[st.model] = 1;
+    const op = document.createElement('option');
+    op.value = st.model; op.textContent = st.model;
+    fm.appendChild(op);
+  });
+  renderStocks();
+});
+initStockForm();

@@ -226,6 +226,14 @@ td select:disabled {
   -moz-appearance: none;
 }
 
+/* 选现货锁定鱼缸行：保持原色、不可点击（不变灰） */
+td select.locked-stock:disabled {
+  color: inherit;
+  cursor: default;
+  opacity: 1;
+  background: #fff;
+}
+
 /* 只读的"总价 / 原价"格：浅灰底 */
 td input.amount,
 td input.orig {
@@ -698,3 +706,154 @@ body.exporting td .cell-err { display: none; }
 }
 .userbar button:hover { background: #f2f4f7; }
 body.exporting .userbar { display: none; }
+
+
+/* 我的订单弹窗 */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.modal-box { background: #fff; border-radius: 14px; width: 100%; max-width: 98vw; max-height: 97vh; display: flex; flex-direction: column; box-shadow: 0 14px 50px rgba(16,32,60,.28); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; border-bottom: 1px solid #dfe6ef; background: linear-gradient(135deg,#f3f7fc,#e8eef7); border-radius: 14px 14px 0 0; font-size: 17px; font-weight: 600; color: #1e3a5f; }
+.modal-head button { padding: 6px 16px; border: 1px solid #c7d3e2; background: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; color: #1e3a5f; }
+.modal-head button:hover { background: #f5f6f8; }
+.modal-tip { padding: 10px 18px 0; font-size: 13px; color: #888; min-height: 20px; }
+.modal-body { overflow: auto; padding: 18px 24px 24px; }
+.modal-body table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.modal-body th, .modal-body td { border: 1px solid #e6e8eb; padding: 7px 9px; text-align: left; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
+.modal-body th { background: #f0f2f5; position: sticky; top: 0; }
+.modal-body td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.modal-body tr:hover td { background: #f7f9fc; }
+.modal-empty { padding: 36px; text-align: center; color: #999; }
+body.exporting .modal-mask { display: none !important; }
+
+
+/* 首页 */
+.home-hero { text-align: center; padding: 46px 16px 8px; }
+.home-hero h2 { font-size: 28px; letter-spacing: 8px; color: #1a2b4d; margin: 0 0 12px; }
+.home-hero p { font-size: 14px; color: #7a8699; }
+.home-hero p b { color: #1667ff; }
+.home-cards { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; margin-top: 30px; padding-bottom: 30px; }
+.home-card { width: 216px; padding: 30px 18px 26px; border-radius: 16px; background: #fff; border: 1px solid #e3e8f0; box-shadow: 0 6px 20px rgba(30,58,95,.06); cursor: pointer; text-align: center; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.home-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(30,58,95,.14); border-color: #b9c9e0; }
+.hc-icon { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: #fff; }
+.hc-fill { background: linear-gradient(135deg, #4a7dd0, #2a4d7f); }
+.hc-sum { background: linear-gradient(135deg, #3fa08a, #23695a); }
+.hc-stock { background: linear-gradient(135deg, #d99a4e, #b0762a); }
+.hc-title { font-size: 18px; font-weight: 600; color: #1e3a5f; margin-bottom: 8px; }
+.hc-desc { font-size: 13px; color: #7a8699; }
+
+/* 顶部导航与角色分区 */
+.topnav { display: flex; gap: 8px; margin: 10px 0 14px; flex-wrap: wrap; }
+.nav-tab { padding: 9px 22px; border: 1px solid #d9dde3; background: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; color: #555; }
+.nav-tab:hover { background: #f5f6f8; }
+.nav-tab.active { background: #1667ff; border-color: #1667ff; color: #fff; font-weight: 600; }
+.tab-panel { display: none; }
+
+/* 订单汇总（经理） */
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; font-size: 14px; }
+.toolbar select, .toolbar input { padding: 7px 10px; border: 1px solid #d9dde3; border-radius: 6px; font-size: 13px; }
+.toolbar button { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+#exportCsvBtn { background: #1667ff; color: #fff; }
+#exportCsvBtn:hover { background: #0f55d8; }
+#refreshBtn { background: #fff; border: 1px solid #d9dde3; color: #333; }
+#count { color: #666; font-size: 13px; }
+.sum { background: #fff; border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+.sum b { color: #1667ff; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow: auto; max-height: calc(100vh - 250px); }
+#ordersTable { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; table-layout: auto; }
+#ordersTable thead { position: sticky; top: 0; z-index: 5; }
+#ordersTable thead tr th { background: #20304f; color: #fff; font-weight: 600; text-align: center; padding: 10px 8px; border: 1px solid #2b3d63; white-space: nowrap; font-size: 13px; letter-spacing: 1px; }
+#ordersTable td { border: 1px solid #e8ebef; padding: 8px 10px; text-align: center; white-space: nowrap; color: #2b3441; background: #fff; }
+#ordersTable tbody tr:nth-child(even) td { background: #f8fafc; }
+#ordersTable tbody tr:hover td { background: #eef4ff; }
+#ordersTable td.num { text-align: center; font-variant-numeric: tabular-nums; }
+#ordersTable .empty { padding: 40px; text-align: center; color: #999; }
+.order-link { color: #1667ff; font-weight: 600; cursor: pointer; text-decoration: none; }
+.order-link:hover { text-decoration: underline; color: #0b46c4; }
+#tab-summary .table-scroll { overflow-x: auto; }
+#tab-summary .card { max-height: calc(100vh - 240px); overflow: auto; }
+#errMsg { color: #d33; margin: 8px 0; font-size: 13px; }
+
+/* 现货管理（经理） */
+.stock-panel { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+.stock-title { position: relative; text-align: center; font-size: 24px; font-weight: 700; color: #1e3a5f; letter-spacing: 10px; margin: 8px 0 3px; padding-bottom: 12px; }
+.stock-title::after { content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #1667ff, #4d94ff, #1667ff); }
+.stock-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; padding: 12px; background: #f7f9fc; border: 1px solid #e6e9ef; border-radius: 8px; }
+.stock-add input, .stock-add select { padding: 7px 10px; border: 1px solid #d9dde3; border-radius: 6px; font-size: 13px; height: 34px; box-sizing: border-box; color: #334155; }
+.stock-add input:focus, .stock-add select:focus { outline: none; border-color: #1667ff; box-shadow: 0 0 0 2px rgba(22,103,255,.1); }
+.stock-add input::placeholder { color: #9aa7b8; }
+.stock-add .fish-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.stock-add button { height: 34px; padding: 0 24px; background: linear-gradient(135deg, #1667ff, #0f55d8); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.stock-add button:hover { background: linear-gradient(135deg, #0f55d8, #0a47b8); box-shadow: 0 2px 6px rgba(22,103,255,.3); }
+.stock-msg { color: #d33; font-size: 13px; margin-bottom: 8px; min-height: 16px; }
+#stockTable { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; border: 1px solid #dbe1e8; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+#stockTable th { background: #f2f5f9; color: #334155; padding: 9px 8px 11px; text-align: center; border-right: 1px solid #e6e9ee; border-bottom: 1px solid #dbe1e8; font-weight: 600; white-space: nowrap; }
+#stockTable th:last-child { border-right: none; }
+#stockTable th input, #stockTable th select { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 5px 6px; font-size: 12px; border: 1px solid #cdd5df; border-radius: 5px; background: #fff; color: #475569; text-align: left; min-width: 0; appearance: none; -webkit-appearance: none; }
+#stockTable th input::placeholder { color: #9aa7b8; }
+#stockTable th select { padding-right: 14px; }
+#stockTable th select:hover { border-color: #94a6bd; }
+#stockTable th input:focus, #stockTable th select:focus { outline: none; border-color: #1667ff; box-shadow: 0 0 0 2px rgba(22,103,255,.12); }
+#stockTable td { padding: 9px 10px; text-align: center; border-right: 1px solid #f0f2f5; border-bottom: 1px solid #f0f2f5; color: #334155; white-space: nowrap; }
+#stockTable td:last-child { border-right: none; }
+#stockTable tbody tr:last-child td { border-bottom: none; }
+#stockTable tbody tr:nth-child(even) { background: #fafbfd; }
+#stockTable tbody tr:hover { background: #eef5ff; }
+#stockTable td.no { text-align: center; }
+/* 状态列着色：在库/在工厂/二手=绿，二手单独橙 */
+#stockTable td.st-home { color: #16a34a; font-weight: 500; }
+#stockTable td.st-factory { color: #16a34a; font-weight: 500; }
+#stockTable td.st-second { color: #d97706; font-weight: 500; }
+#stockTable td.st-sold { color: #dc2626; font-weight: 500; }
+#stockTable td.st-old { color: #64748b; }
+#stockTable td.st-locked { color: #7c3aed; font-weight: 600; }
+#stockTable td .lock-timer { font-variant-numeric: tabular-nums; font-weight: 600; }
+/* 状态列悬浮锁单按钮：默认隐藏，鼠标悬停该行时显示 */
+td.st-op-cell { position: relative; }
+.lock-float { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); opacity: 0; transition: opacity .18s; padding: 1px 7px; font-size: 11px; line-height: 18px; border: 1px solid #b39ddb; color: #5e35b1; background: #f5f0ff; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+tr:hover .lock-float { opacity: 1; }
+.lock-float:hover { background: #ede4ff; border-color: #9575cd; }
+.unlock-float { border-color: #e0a2a2; color: #c0392b; background: #fdf0ef; }
+.unlock-float:hover { background: #fde4e2; }
+@media (hover: none) { .lock-float { opacity: 1; } }
+.del-stock { padding: 3px 10px; border: 1px solid #e0a2a2; color: #c0392b; background: #fff; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.del-stock:hover { background: #fdecea; }
+body.exporting .topnav { display: none; }
+
+
+/* 订单详情：与填写时一致的只读视图 */
+.od-val {
+  border: 1px solid #d9dde3; border-radius: 6px; padding: 8px 10px;
+  background: #fff; color: #2b3441; font-size: 13.5px;
+  min-height: 18px; box-sizing: border-box; width: 100%;
+  white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;
+}
+.od-val.num { text-align: right; font-variant-numeric: tabular-nums; }
+.od-val.multi { white-space: pre-wrap; min-height: 36px; }
+.od-detail .order-no { font-size: 14px; color: #555; margin-bottom: 6px; }
+.od-detail .order-no span { color: #1667ff; font-weight: 600; }
+.od-detail h1 { font-size: 24px; letter-spacing: 10px; color: #1a2b4d; text-align: center; margin: 6px 0 16px; }
+#odItemsTable { width: 100%; border-collapse: collapse; margin-top: 4px; }
+#odItemsTable thead th { background: linear-gradient(180deg,#2a4d7f,#1f3a5f); color: #fff; letter-spacing: 1px; font-weight: 600; }
+#odItemsTable th, #odItemsTable td { border: 1px solid #c9d2dd; }
+#odItemsTable td { padding: 7px 8px; }
+#odItemsTable th:nth-child(1), #odItemsTable td:nth-child(1) { min-width: 46px; }
+#odItemsTable th:nth-child(2), #odItemsTable td:nth-child(2) { min-width: 60px; }
+#odItemsTable th:nth-child(3), #odItemsTable td:nth-child(3) { min-width: 72px; }
+#odItemsTable th:nth-child(4), #odItemsTable td:nth-child(4) { min-width: 130px; }
+#odItemsTable th:nth-child(5), #odItemsTable td:nth-child(5) { min-width: 48px; }
+#odItemsTable th:nth-child(6), #odItemsTable td:nth-child(6) { min-width: 74px; white-space: nowrap; }
+#odItemsTable th:nth-child(7), #odItemsTable td:nth-child(7) { min-width: 84px; white-space: nowrap; }
+#odItemsTable th:nth-child(8), #odItemsTable td:nth-child(8) { min-width: 84px; white-space: nowrap; }
+#odItemsTable th { background: #eef1f6; font-weight: 600; color: #33415c; }
+#odSum { display: block; }
+#odSum .total-area { margin: 14px 0 4px; }
+#odSum .total-row { white-space: nowrap; }
+#odSum .total-label { white-space: nowrap; }
+#odSum .od-val.num { width: 130px; text-align: right; }
+#odNotes { display: block; }
+#odNotes .info-block { margin-top: 14px; }
+#odNotes .total-area { margin: 14px 0 0; }
+/* 选择显示列 */
+.col-pick-list { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 6px 2px; }
+.col-pick-list label { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: #2b3441; cursor: pointer; padding: 4px 8px; border: 1px solid #e2e6ec; border-radius: 6px; background: #fafbfd; }
+.col-pick-list label:hover { border-color: #1667ff; }
+.col-pick-list input { accent-color: #1667ff; width: 15px; height: 15px; }
