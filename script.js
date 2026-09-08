@@ -73,13 +73,16 @@ function showTab(name) {
   if (name === 'stock') loadStocks();
 }
 async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
+  const uname = document.getElementById('loginEmail').value.trim();
   const pwd = document.getElementById('loginPwd').value;
   const msg = document.getElementById('loginMsg');
   msg.textContent = '';
-  if (!email || !pwd) { msg.textContent = '请输入邮箱和密码'; return; }
-  const { data, error } = await sbClient.auth.signInWithPassword({ email: email, password: pwd });
-  if (error) { msg.textContent = '登录失败：' + (error.message || '邮箱或密码错误'); return; }
+  if (!uname || !pwd) { msg.textContent = '请输入用户名和密码'; return; }
+  // 用户名 → 邮箱
+  const lu = await sbClient.from('user_login').select('email').eq('username', uname).maybeSingle();
+  if (lu.error || !lu.data) { msg.textContent = '账号不存在，请检查用户名'; return; }
+  const { data, error } = await sbClient.auth.signInWithPassword({ email: lu.data.email, password: pwd });
+  if (error) { msg.textContent = '登录失败：' + (error.message || '用户名或密码错误'); return; }
   enterApp(data.user);
 }
 function doLogout() {
