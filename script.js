@@ -18,7 +18,7 @@ function initCloud() {
   if (typeof supabase === 'undefined') { return; }
   sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   sbClient.auth.getSession().then(function (res) {
-    if (res.data && res.data.session) enterApp();
+    if (res.data && res.data.session) enterApp(res.data.session.user);
     else showLogin();
   });
 }
@@ -26,9 +26,8 @@ function showLogin() {
   document.getElementById('loginGate').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
-function enterApp() {
-  const session = sbClient.auth.session();
-  const u = (session && session.user) || null;
+function enterApp(user) {
+  const u = user || null;
   if (!u) { showLogin(); return; }
   currentUserName = (u.user_metadata && u.user_metadata.name) || u.email || '';
   document.getElementById('curUser').textContent = currentUserName;
@@ -43,9 +42,9 @@ async function doLogin() {
   const msg = document.getElementById('loginMsg');
   msg.textContent = '';
   if (!email || !pwd) { msg.textContent = '请输入邮箱和密码'; return; }
-  const { error } = await sbClient.auth.signInWithPassword({ email: email, password: pwd });
+  const { data, error } = await sbClient.auth.signInWithPassword({ email: email, password: pwd });
   if (error) { msg.textContent = '登录失败：' + (error.message || '邮箱或密码错误'); return; }
-  enterApp();
+  enterApp(data.user);
 }
 function doLogout() {
   sbClient.auth.signOut().then(function () { showLogin(); });
@@ -1794,7 +1793,9 @@ orderForm.addEventListener('submit', function (e) {
   (async function () {
     try {
       const d = collectFormData(); // 完整表单数据（含明细行）
-      const uid = sbClient.auth.user().id;
+      const { data: ud, error: ue } = await sbClient.auth.getUser();
+      if (ue || !ud || !ud.user) throw new Error('登录状态失效，请退出重新登录');
+      const uid = ud.user.id;
       const { data, error } = await sbClient.from('orders').insert({
         user_id: uid,
         order_no: 'Dy-PENDING',

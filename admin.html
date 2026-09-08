@@ -102,19 +102,29 @@
       document.getElementById('loginGate').style.display = 'flex';
       document.getElementById('app').style.display = 'none';
     }
-    function enterApp() {
-      const session = sbClient.auth.session();
-      const u = (session && session.user) || null;
+    function enterApp(user) {
+      const u = user || null;
       if (!u) { showLogin(); return; }
-      document.getElementById('curUser').textContent = (u.user_metadata && u.user_metadata.name) || u.email || '';
-      document.getElementById('loginGate').style.display = 'none';
-      document.getElementById('app').style.display = '';
-      loadOrders();
+      const name = (u.user_metadata && u.user_metadata.name) || u.email || '';
+      // 经理端：必须是 admin 角色才能进入（防销售用自己账号打开经理页）
+      sbClient.from('profiles').select('role').eq('id', u.id).single().then(function (res) {
+        if (res.error || !res.data || res.data.role !== 'admin') {
+          document.getElementById('loginMsg').textContent = '该账号无经理权限，请使用经理账号登录';
+          document.getElementById('loginGate').style.display = 'flex';
+          document.getElementById('app').style.display = 'none';
+          sbClient.auth.signOut();
+          return;
+        }
+        document.getElementById('curUser').textContent = name;
+        document.getElementById('loginGate').style.display = 'none';
+        document.getElementById('app').style.display = '';
+        loadOrders();
+      });
     }
     function init() {
       sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       sbClient.auth.getSession().then(function (res) {
-        if (res.data && res.data.session) enterApp(); else showLogin();
+        if (res.data && res.data.session) enterApp(res.data.session.user); else showLogin();
       });
     }
     function esc(s) {
@@ -256,7 +266,7 @@
       if (!email || !pwd) { msg.textContent = '请输入邮箱和密码'; return; }
       sbClient.auth.signInWithPassword({ email: email, password: pwd }).then(function (res) {
         if (res.error) { msg.textContent = '登录失败：' + (res.error.message || '邮箱或密码错误'); return; }
-        enterApp();
+        enterApp(res.data.user);
       });
     });
     document.getElementById('loginPwd').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
