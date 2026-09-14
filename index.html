@@ -7279,7 +7279,7 @@ function loadStocks() {
           ? '（' + (st.locked_by || '') + ' 锁单中）' : '';
         opt.textContent = st.sn + locked + (st.brand || st.model ? ' ｜ ' + (st.brand ? st.brand + ' ' : '') + (st.model || '') : '');
         dl.appendChild(opt);
-        stockMap[st.sn] = { brand: st.brand || '', model: st.model || '', remark: st.remark || '' };
+        stockMap[st.sn] = { brand: st.brand || '', model: st.model || '', remark: st.remark || '', price: st.price };
       });
       if (cur && Array.prototype.some.call(dl.options, function (o) { return o.value === cur; })) dl.value = cur;
     }
