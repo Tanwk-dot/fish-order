@@ -5279,6 +5279,7 @@ function calcOriginal(row) {
 function recalc() {
   // 加载订单模式下，不自动覆盖原价和单价
   if (window._isLoadingOrder) return;
+  const adminManual = (currentRole === 'admin');  // 负责人：原价/单价手填，不被自动覆盖
 
   let sumAmount = 0; // 合计金额
   let sumOrig = 0;   // 合计原价
@@ -5315,6 +5316,15 @@ function recalc() {
         sumOrig = sumOrig + price;
         sumAmount = sumAmount + amount;
         continue; // 这行算完了，去下一行
+      } else if (adminManual) {
+        // 负责人手填模式：读已填的原价/单价，不覆盖输入框
+        const orig = parseFloat(row.querySelector('.orig').value) || 0;
+        const price = parseFloat(row.querySelector('.price').value) || 0;
+        const amount = price * qty;
+        row.querySelector('.amount').value = amount === 0 ? '' : fmt(amount);
+        sumOrig = sumOrig + orig;
+        sumAmount = sumAmount + amount;
+        continue;
       } else if (cfg) {
         // 正常：基础原价（型号查表）+ 岩板加价
         const rock = row.querySelector('.fish-opt[data-fish="rock"]').value;
@@ -5377,7 +5387,7 @@ function recalc() {
     if (rowCategory(row) === '抵扣') {
       row.querySelector('.orig').value = amount === 0 ? '' : fmt(amount);
       sumOrig = sumOrig + amount;
-    } else if (catOther || brandOther || modelOther) {
+    } else if (adminManual || catOther || brandOther || modelOther) {
       const manualOrig = parseFloat(row.querySelector('.orig').value) || 0;
       sumOrig = sumOrig + manualOrig;
     } else {
