@@ -7652,6 +7652,13 @@ function fillFishFromRemark(row, remark) {
       recalc();
     }
   });
+  // 鱼缸行重新选品牌/型号：清掉手改标记，恢复自动带出价格
+  topBox.addEventListener('change', function (e) {
+    if (e.target.classList.contains('brand') || e.target.classList.contains('model')) {
+      var tr = e.target.closest('tr');
+      if (tr) tr.dataset.pricedTouched = '';
+    }
+  });
 })();
 
 // 选中现货编号：品牌、型号、备注全部带出，鱼缸一栏锁定不允许修改；取消现货则恢复可编辑
@@ -7661,8 +7668,10 @@ document.getElementById('tankNo').addEventListener('change', function () {
   const info = stockMap[v];
   const fishRow = document.querySelector('#topRows tr');
   if (!fishRow) return;
-  if (!info) { // 取消现货：解锁鱼缸行
+  if (!info) { // 取消现货：解锁鱼缸行，并清掉手改价格标记，恢复自动算价
     setFishRowLocked(false);
+    fishRow.dataset.pricedTouched = '';
+    recalc();
     return;
   }
   const brandSel = fishRow.querySelector('.brand');
