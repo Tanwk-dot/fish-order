@@ -5316,8 +5316,8 @@ function recalc() {
         sumOrig = sumOrig + price;
         sumAmount = sumAmount + amount;
         continue; // 这行算完了，去下一行
-      } else if (adminManual) {
-        // 负责人手填模式：读已填的原价/单价，不覆盖输入框
+      } else if (adminManual && row.dataset.pricedTouched === '1') {
+        // 负责人已手改：读已填值，不覆盖输入框；未手改则落到下面 cfg 分支自动带出
         const orig = parseFloat(row.querySelector('.orig').value) || 0;
         const price = parseFloat(row.querySelector('.price').value) || 0;
         const amount = price * qty;
@@ -5387,7 +5387,7 @@ function recalc() {
     if (rowCategory(row) === '抵扣') {
       row.querySelector('.orig').value = amount === 0 ? '' : fmt(amount);
       sumOrig = sumOrig + amount;
-    } else if (adminManual || catOther || brandOther || modelOther) {
+    } else if ((adminManual && row.dataset.pricedTouched === '1') || catOther || brandOther || modelOther) {
       const manualOrig = parseFloat(row.querySelector('.orig').value) || 0;
       sumOrig = sumOrig + manualOrig;
     } else {
@@ -5610,6 +5610,11 @@ document.getElementById('itemsTable').addEventListener('input', function (e) {
       const er = e.target.closest('td').querySelector('.orig-err');
       if (er) { er.textContent = ''; er.style.display = 'none'; }
     }
+    // 负责人在原价/单价上手动输入 → 标记已手改，之后重算不再覆盖
+    if (currentRole === 'admin') {
+      const tr0 = e.target.closest('tr');
+      if (tr0) tr0.dataset.pricedTouched = '1';
+    }
     recalc();
     // 物流费行：单价一变，重新算"到付/包邮"备注
     const row0 = e.target.closest('tr');
@@ -5652,6 +5657,11 @@ document.getElementById('itemsTable').addEventListener('change', function (e) {
   const c = e.target.classList;
   const row = e.target.closest('tr');
   const cat = rowCategory(row);
+
+  // 重新选择类别/品牌/型号 → 清掉手改标记，触发自动带出价格
+  if (currentRole === 'admin' && (c.contains('cat') || c.contains('brand') || c.contains('model'))) {
+    row.dataset.pricedTouched = '';
+  }
 
   // 人数失焦：空值恢复默认 1
   if (c.contains('install-count') && (e.target.value === '' || isNaN(parseInt(e.target.value, 10)))) {
