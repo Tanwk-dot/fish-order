@@ -3172,6 +3172,7 @@ body.exporting .topnav { display: none; }
         <select id="sModelSel"><option value="">型号规格</option></select>
         <input id="sModelMan" placeholder="手动输入型号" style="display:none">
         <select id="sStatus"><option>现货在家</option><option>现货在工厂</option><option>二手</option></select>
+        <input id="sPrice" placeholder="现货价格（元）" style="width:120px">
         <div id="stockFishOpts" class="fish-options"></div>
         <div id="stockOptsMsg" class="hint" style="display:none;color:#d33;">请完整选择品牌对应的备注选项</div>
         <button id="addStockBtn" type="button">＋ 添加</button>
@@ -3183,6 +3184,7 @@ body.exporting .topnav { display: none; }
             <th>编号<input id="fStockSn" placeholder="搜索编号"></th>
             <th>品牌<select id="fStockBrand"><option value="">全部品牌</option></select></th>
             <th>型号规格<select id="fStockModel"><option value="">全部型号</option></select></th>
+            <th>价格</th>
             <th>柜体<select id="fStockCabinet"><option value="">全部柜体</option></select></th>
             <th>岩板<select id="fStockRock"><option value="">全部岩板</option></select></th>
             <th>溢流方向<select id="fStockFlow"><option value="">全部溢流</option></select></th>
@@ -5316,8 +5318,8 @@ function recalc() {
         sumOrig = sumOrig + price;
         sumAmount = sumAmount + amount;
         continue; // 这行算完了，去下一行
-      } else if (adminManual && row.dataset.pricedTouched === '1') {
-        // 负责人已手改：读已填值，不覆盖输入框；未手改则落到下面 cfg 分支自动带出
+      } else if (row.dataset.pricedTouched === '1') {
+        // 已手改或已带出现货价：读已填值，不覆盖输入框
         const orig = parseFloat(row.querySelector('.orig').value) || 0;
         const price = parseFloat(row.querySelector('.price').value) || 0;
         const amount = price * qty;
@@ -5610,10 +5612,10 @@ document.getElementById('itemsTable').addEventListener('input', function (e) {
       const er = e.target.closest('td').querySelector('.orig-err');
       if (er) { er.textContent = ''; er.style.display = 'none'; }
     }
-    // 负责人在原价/单价上手动输入 → 标记已手改，之后重算不再覆盖
+    // 负责人(admin)在器材/费用行手改价格 → 标记 touched，重算不覆盖；销售不标记，走自动价
     if (currentRole === 'admin') {
-      const tr0 = e.target.closest('tr');
-      if (tr0) tr0.dataset.pricedTouched = '1';
+      const trA = e.target.closest('tr');
+      if (trA) trA.dataset.pricedTouched = '1';
     }
     recalc();
     // 物流费行：单价一变，重新算"到付/包邮"备注
@@ -7176,11 +7178,11 @@ function renderStocks() {
     return true;
   });
   if (allStocks.length === 0) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">暂无现货，先添加一条</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:20px;">暂无现货，先添加一条</td></tr>';
     return;
   }
   if (rows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">没有符合筛选条件的现货</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:20px;">没有符合筛选条件的现货</td></tr>';
     return;
   }
   // 默认排序：二手沉底 → 品牌 → 型号 → 柜体 → 岩板 → 溢流 → 底滤
@@ -7231,6 +7233,7 @@ function renderStocks() {
       + '<td class="no">' + (canDel ? '<button class="del-btn del-stock" data-id="' + st.id + '" type="button" title="删除此条现货">✕</button>' : '') + '<span>' + esc(st.sn) + '</span></td>'
       + '<td>' + esc(st.brand) + '</td>'
       + '<td>' + esc(st.model) + '</td>'
+      + '<td>' + (st.price != null && st.price !== '' ? fmtMoney(st.price) : '') + '</td>'
       + '<td>' + esc(rk.cabinet) + '</td>'
       + '<td>' + esc(rk.rock) + '</td>'
       + '<td>' + esc(rk.flow) + '</td>'
@@ -7580,7 +7583,9 @@ function addStock() {
     }).join(' | ');
   }
   const status = document.getElementById('sStatus').value;
-  sbClient.from('stocks').insert({ sn: sn, brand: brand, model: model, status: status, remark: remark }).select('id').then(function (res) {
+  const pVal = parseFloat(document.getElementById('sPrice').value);
+  const priceObj = isNaN(pVal) ? null : pVal;
+  sbClient.from('stocks').insert({ sn: sn, brand: brand, model: model, status: status, remark: remark, price: priceObj }).select('id').then(function (res) {
     const msg = document.getElementById('stockMsg');
     if (res.error) { msg.textContent = '添加失败：' + (res.error.message || ''); return; }
     msg.textContent = '';
@@ -7636,6 +7641,19 @@ function fillFishFromRemark(row, remark) {
     if (!row.querySelector('.fish-opt[data-fish="door"]')) set('base', rk.extra);
   }
 }
+// 鱼缸行价格输入：仅鱼缸行改价标记 touched（器材行走自己的逻辑，不受影响）
+(function () {
+  var topBox = document.querySelector('#topRows');
+  if (!topBox) return;
+  topBox.addEventListener('input', function (e) {
+    if (e.target.classList.contains('orig') || e.target.classList.contains('price')) {
+      var tr = e.target.closest('tr');
+      if (tr) tr.dataset.pricedTouched = '1';
+      recalc();
+    }
+  });
+})();
+
 // 选中现货编号：品牌、型号、备注全部带出，鱼缸一栏锁定不允许修改；取消现货则恢复可编辑
 document.getElementById('tankNo').addEventListener('change', function () {
   hideFieldErr('tankNo');
@@ -7671,6 +7689,14 @@ document.getElementById('tankNo').addEventListener('change', function () {
           // 型号确定后填备注，再锁定
           setTimeout(function () {
             fillFishFromRemark(fishRow, info.remark);
+            // 带出现货价格到鱼缸行
+            var pEl = fishRow.querySelector('.price');
+            var oEl = fishRow.querySelector('.orig');
+            if (pEl && info.price != null && info.price !== '') {
+              pEl.value = fmtMoney(info.price);
+              if (oEl) oEl.value = fmtMoney(info.price);
+              fishRow.dataset.pricedTouched = '1';
+            }
             setFishRowLocked(true);
           }, 350);
         }, 250);
