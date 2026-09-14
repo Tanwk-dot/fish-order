@@ -5115,18 +5115,12 @@ function updateRowState(row) {
     refreshRestore(row, 'model');
   }
 
-  // 单价：品牌/型号选其他时，也可手动编辑
+  // 单价：所有角色都可手动编辑（原价仍按后面规则控制）
   const priceBox = row.querySelector('.price');
   if (priceBox) {
-    if (origManual || currentRole === 'admin') {
-      priceBox.readOnly = false;
-      priceBox.removeAttribute('readonly');
-      priceBox.classList.add('editable');
-    } else {
-      priceBox.readOnly = true;
-      priceBox.setAttribute('readonly', 'readonly');
-      priceBox.classList.remove('editable');
-    }
+    priceBox.readOnly = false;
+    priceBox.removeAttribute('readonly');
+    priceBox.classList.add('editable');
   }
 
   // 原价：手动模式下可手填，正常模式自动算
