@@ -2322,6 +2322,251 @@ body.exporting .topnav { display: none; }
   flex-shrink: 0;
 }
 
+
+/* ========== 完整移动端适配（768px以下） ========== */
+@media (max-width: 768px) {
+  /* 整体布局 */
+  .app-container {
+    flex-direction: column;
+  }
+  
+  /* 侧边栏：移动端隐藏，用汉堡菜单 */
+  .sidebar {
+    width: 100% !important;
+    height: auto !important;
+    position: fixed;
+    top: 0;
+    left: -100%;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.1);
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+  
+  /* 主内容区 */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  
+  /* 顶部导航栏 */
+  .topbar {
+    padding: 10px 12px !important;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .topbar-left h2 {
+    font-size: 16px !important;
+  }
+  
+  /* 汉堡菜单按钮 */
+  .menu-toggle {
+    display: flex !important;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 8px;
+    background: #f5f5f5;
+    border: none;
+  }
+  
+  /* 表单字段：单列显示 */
+  .form-row {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  
+  .field {
+    flex: 1 1 100% !important;
+    min-width: 100% !important;
+  }
+  
+  .field label {
+    font-size: 13px !important;
+    margin-bottom: 4px !important;
+  }
+  
+  .field input, .field select, .field textarea {
+    padding: 10px 12px !important;
+    font-size: 16px !important; /* 防止iOS自动缩放 */
+  }
+  
+  /* 统计卡片：单列 */
+  .dash-stats {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  .stat-card {
+    padding: 16px !important;
+  }
+  
+  .stat-card .stat-value {
+    font-size: 24px !important;
+  }
+  
+  /* 图表：单列 */
+  .dash-charts {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  /* 首页三栏：单列堆叠 */
+  .sales-bottom-grid,
+  .admin-bottom-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  /* 日历：缩小格子高度 */
+  .calendar-cell {
+    min-height: 50px !important;
+    padding: 3px !important;
+    font-size: 11px !important;
+  }
+  
+  .calendar-day-name {
+    font-size: 11px !important;
+    padding: 4px 0 !important;
+  }
+  
+  /* 表格：横向滚动 */
+  .table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table {
+    min-width: 600px !important;
+  }
+  
+  th, td {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+  }
+  
+  /* 按钮：更大更易点击 */
+  .btn, button {
+    min-height: 44px;
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+  }
+  
+  /* 工具栏按钮 */
+  .order-page-top {
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  
+  /* 模态框 */
+  .modal-overlay {
+    padding: 0 !important;
+  }
+  
+  .modal-box {
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+  }
+  
+  /* 额外收款行 */
+  .extra-pay-row {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  .extra-pay-row .field {
+    flex: 1 1 100% !important;
+  }
+  
+  /* 新消息提醒 */
+  .message-item {
+    padding: 10px !important;
+  }
+  
+  .message-title {
+    font-size: 13px !important;
+  }
+  
+  .message-desc {
+    font-size: 12px !important;
+  }
+  
+  /* 待交付/待收款清单 */
+  .list-item {
+    padding: 10px !important;
+  }
+  
+  .list-title {
+    font-size: 13px !important;
+  }
+  
+  /* 标题字体缩小 */
+  h1, h2, h3 {
+    word-break: break-all;
+  }
+  
+  /* 下拉框 */
+  select {
+    font-size: 16px !important; /* 防止iOS缩放 */
+  }
+  
+  /* 输入框 */
+  input, textarea {
+    font-size: 16px !important; /* 防止iOS缩放 */
+  }
+}
+
+/* 超小屏幕（480px以下） */
+@media (max-width: 480px) {
+  .main-content {
+    padding: 8px !important;
+  }
+  
+  .stat-card .stat-value {
+    font-size: 20px !important;
+  }
+  
+  .calendar-cell {
+    min-height: 40px !important;
+  }
+  
+  .calendar-day-name {
+    font-size: 10px !important;
+  }
+}
+
+/* 移动端顶栏：默认隐藏，768px以下显示 */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  margin: -12px -12px 16px -12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+@media (max-width: 768px) {
+  .mobile-topbar {
+    display: flex;
+  }
+}
+
 </style>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
@@ -2418,6 +2663,12 @@ body.exporting .topnav { display: none; }
 
   <!-- 主内容区 -->
   <div class="main-content" id="mainContent">
+
+  <!-- 移动端顶栏（仅手机显示） -->
+  <div class="mobile-topbar">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <span class="mobile-title">鱼缸订单系统</span>
+  </div>
 
   <!-- 功能页工具栏：返回 + 历史 + 改单 -->
   <div id="pageToolbar" class="odp-userbar" style="display:none;">
@@ -3388,7 +3639,7 @@ function enterApp(user) {
         ownerSelect.innerHTML = '<option value="">请选择负责人</option><option value="__other__">其他...</option>';
         
         // 查询所有销售并添加到下拉（显示姓名）
-        sbClient.from('user_login').select('username, name').eq('role', 'sales').then(function(res) {
+        sbClient.from('user_login').select('username, name').in('role', ['sales', 'boss']).then(function(res) {
           console.log('查询销售结果:', res);
           if (res.data && res.data.length > 0) {
             res.data.forEach(function(user) {
@@ -3406,9 +3657,14 @@ function enterApp(user) {
           currentOption.textContent = currentUserName + '（负责人）';
           ownerSelect.appendChild(currentOption);
           
-          // 默认选中自己
-          ownerSelect.value = currentUserName;
-          ownerHidden.value = currentUserName;
+          // 优先回填待设置的负责人（改单/草稿加载），否则默认选中自己
+          if (window._pendingOwner) {
+            applyOwnerValue(window._pendingOwner);
+            window._pendingOwner = null;
+          } else {
+            ownerSelect.value = currentUserName;
+            ownerHidden.value = currentUserName;
+          }
         }).catch(function(err) {
           console.error('查询销售失败:', err);
           // 添加当前登录用户（负责人）
@@ -3417,9 +3673,14 @@ function enterApp(user) {
           currentOption.textContent = currentUserName + '（负责人）';
           ownerSelect.appendChild(currentOption);
           
-          // 默认选中自己
-          ownerSelect.value = currentUserName;
-          ownerHidden.value = currentUserName;
+          // 优先回填待设置的负责人，否则默认选中自己
+          if (window._pendingOwner) {
+            applyOwnerValue(window._pendingOwner);
+            window._pendingOwner = null;
+          } else {
+            ownerSelect.value = currentUserName;
+            ownerHidden.value = currentUserName;
+          }
         });
       }
     } else {
@@ -3532,6 +3793,12 @@ function closeOrderPage() {
 }
 
 function showTab(name) {
+  // 移动端：切换页面后自动关闭侧边栏
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar && window.innerWidth <= 768) {
+    sidebar.classList.remove('open');
+  }
+  
   document.title = '鱼缸订单系统';
   // 补录订单其实就是填单表单，只是标记为补单模式
   const isBackfill = (name === 'backfill');
@@ -4846,15 +5113,32 @@ function updateRowState(row) {
     refreshRestore(row, 'model');
   }
 
+  // 单价：品牌/型号选其他时，也可手动编辑
+  const priceBox = row.querySelector('.price');
+  if (priceBox) {
+    if (origManual || currentRole === 'admin') {
+      priceBox.readOnly = false;
+      priceBox.removeAttribute('readonly');
+      priceBox.classList.add('editable');
+    } else {
+      priceBox.readOnly = true;
+      priceBox.setAttribute('readonly', 'readonly');
+      priceBox.classList.remove('editable');
+    }
+  }
+
   // 原价：手动模式下可手填，正常模式自动算
-  if (origManual) {
+  if (origManual || currentRole === 'admin') {
     origBox.readOnly = false;
+    origBox.removeAttribute('readonly');
+    origBox.style.pointerEvents = 'auto';
     origBox.classList.add('editable');
   } else {
     origBox.readOnly = true;
+    origBox.setAttribute('readonly', 'readonly');
     origBox.classList.remove('editable');
-    // 回到正常模式时，清空之前手填的内容（抵扣行除外：它的品牌/型号文本框是常态，不清空）
-    if (!isDikou) {
+    // 回到正常模式时，清空之前手填的内容（负责人解锁、抵扣行除外）
+    if (!isDikou && currentRole !== 'admin') {
       if (catManualInput) catManualInput.value = '';
       if (brandManualInput) brandManualInput.value = '';
       if (modelManualInput) modelManualInput.value = '';
@@ -5121,6 +5405,7 @@ function recalc() {
 // 1. 合计原价不得低于合计金额
 // 2. 最终价格（手填）不得高于合计金额
 function checkPrices() {
+  if (currentRole === 'admin') { warningBox.innerHTML = ''; warningBox.style.display = 'none'; return; }
   const orig = parseFloat(totalOrigBox.value) || 0;
   const amt = parseFloat(totalBox.value) || 0;
   const fin = parseFloat(finalPriceBox.value) || 0;
@@ -5451,7 +5736,7 @@ document.getElementById('itemsTable').addEventListener('change', function (e) {
       fillFishOptions(row, v);
     }
     updateRowState(row);
-    if (rowHasOther(row)) row.querySelector('.orig').value = '';
+    // 品牌选其他时，保留原价输入框（不清空，方便用户填写）
     recalc();
     detectDuplicates();
   }
@@ -5462,7 +5747,7 @@ document.getElementById('itemsTable').addEventListener('change', function (e) {
       fillFishOptions(row, row.querySelector('.brand').value);
     }
     updateRowState(row); // 选"其他"→手动填；选回正常→恢复自动
-    if (rowHasOther(row)) row.querySelector('.orig').value = '';
+    // 型号选其他时，保留原价输入框（不清空）
     recalc();
     detectDuplicates();
   }
@@ -5853,6 +6138,7 @@ orderForm.addEventListener('submit', function (e) {
 
   // 鱼缸行/新增行：品牌或型号选"其他"→ 原价为必填项，且不得小于单价
   document.querySelectorAll('#topRows tr, #middleRows tr').forEach(function (row) {
+    if (currentRole === 'admin') return;
     const bSel = row.querySelector('.brand');
     const mSel = row.querySelector('.model');
     if (!bSel || !mSel) return;
@@ -5873,14 +6159,6 @@ orderForm.addEventListener('submit', function (e) {
   });
 
   if (hasErr) return; // 有错：停在原处，红字提示在各自字段下方
-
-  // 已收款（定金+后续收款） < 鱼缸总价 50%：弹窗确认（销售总监已知情同意才能继续）
-  const ds = depositShortfall();
-  if (ds.short) {
-    if (!confirm('已收款（定金+后续收款，共' + fmt(ds.dep) + '）小于鱼缸总价（' + fmt(ds.fishTotal) + '）的 50%（' + fmt(ds.half) + '）。\n请确认销售总监已知情并同意后，点击"确定"继续提交；否则点"取消"返回修改。')) {
-      return;
-    }
-  }
 
   // 重复产品：提交时也拦一道，提示文本出现在表格下方
   if (detectDuplicates()) {
@@ -6122,7 +6400,32 @@ function collectFormData() {
       return parts.filter(Boolean).join('');
     })(),
     leadTime: leadTimeBox.value,
-    owner: document.getElementById('owner').value || '',
+    owner: (function() {
+      // 更稳妥的取值逻辑：不看display状态，直接按优先级取有值的
+      const ownerSelect = document.getElementById('ownerSelect');
+      const ownerText = document.getElementById('ownerText');
+      const ownerDisplay = document.getElementById('ownerDisplay');
+      const ownerHidden = document.getElementById('owner');
+      
+      // 优先级1：下拉框选了具体负责人
+      if (ownerSelect && ownerSelect.value && ownerSelect.value !== '__other__') {
+        return ownerSelect.value;
+      }
+      // 优先级2：手动输入框有值
+      if (ownerText && ownerText.value.trim()) {
+        return ownerText.value.trim();
+      }
+      // 优先级3：只读显示框有值
+      if (ownerDisplay && ownerDisplay.value.trim()) {
+        return ownerDisplay.value.trim();
+      }
+      // 优先级4：hidden字段
+      if (ownerHidden && ownerHidden.value.trim()) {
+        return ownerHidden.value.trim();
+      }
+      // 最后兜底：当前登录人
+      return currentUserName || '未知';
+    })(),
     totalOrig: totalOrigBox.value,
     total: totalBox.value,
     finalPrice: finalPriceBox.value,
@@ -7011,18 +7314,9 @@ let progressOrders = [];
 function loadProgressList() {
   const tbody = document.getElementById('progressTbody');
   if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:40px;">加载中...</td></tr>';
-  // 查询有鱼缸编号的订单（负责人看全部，销售只看自己负责的）
-  let q = sbClient.from('orders').select('*').not('tank_no', 'is', null);
-  if (currentRole !== 'admin') {
-    q = q.eq('owner', currentUserName);
-  }
-  q.order('id', { ascending: false }).then(function (res) {
-    if (res.error) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#d33;padding:40px;">加载失败：' + esc(res.error.message || '网络错误') + '</td></tr>';
-      return;
-    }
-    progressOrders = res.data || [];
-    // 批量查询每个鱼缸的最后跟进记录
+  // 处理订单数据：查最后跟进记录并渲染
+  function processProgressOrders(data) {
+    progressOrders = (data || []).filter(function (o) { return o.tank_no != null && o.tank_no !== ''; });
     const tankNos = progressOrders.map(function (o) { return o.tank_no; }).filter(Boolean);
     if (tankNos.length === 0) {
       renderProgressList({});
@@ -7037,6 +7331,29 @@ function loadProgressList() {
     }).catch(function () {
       renderProgressList({});
     });
+  }
+  // 销售走 RPC 绕过 RLS
+  if (currentRole === 'sales') {
+    sbClient.rpc('get_visible_orders', { p_role: 'sales', p_user_name: currentUserName }).then(function (res) {
+      if (res.error) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#d33;padding:40px;">加载失败：' + esc(res.error.message || '网络错误') + '</td></tr>';
+        return;
+      }
+      processProgressOrders(res.data || []);
+    });
+    return;
+  }
+  // 负责人看全部；其他角色按负责人姓名
+  let q = sbClient.from('orders').select('*').not('tank_no', 'is', null);
+  if (currentRole !== 'admin') {
+    q = q.eq('owner', currentUserName);
+  }
+  q.order('id', { ascending: false }).then(function (res) {
+    if (res.error) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#d33;padding:40px;">加载失败：' + esc(res.error.message || '网络错误') + '</td></tr>';
+      return;
+    }
+    processProgressOrders(res.data || []);
   });
 }
 // 绑定进度表格筛选事件
@@ -7448,6 +7765,98 @@ function loadCols() {
 }
 function saveCols(arr) { try { localStorage.setItem(SUM_COL_KEY, JSON.stringify(arr)); } catch (e) {} }
 
+// 统一的负责人回填：在下拉里能找到就选中，找不到就切"其他"手动输入
+function applyOwnerValue(ownerVal) {
+  const ownerSelect = document.getElementById('ownerSelect');
+  const ownerText = document.getElementById('ownerText');
+  const ownerResetBtn = document.getElementById('ownerResetBtn');
+  const ownerHidden = document.getElementById('owner');
+  if (!ownerVal) return;
+  ownerVal = String(ownerVal).trim();
+  if (!ownerVal) return;
+  // 先在下拉选项里找
+  let exists = false;
+  for (let i = 0; i < ownerSelect.options.length; i++) {
+    if (ownerSelect.options[i].value === ownerVal) { exists = true; break; }
+  }
+  if (exists) {
+    ownerSelect.style.display = 'block';
+    ownerText.style.display = 'none';
+    if (ownerResetBtn) ownerResetBtn.style.display = 'none';
+    ownerSelect.value = ownerVal;
+  } else {
+    ownerSelect.value = '__other__';
+    ownerSelect.style.display = 'none';
+    ownerText.style.display = 'block';
+    ownerText.value = ownerVal;
+    if (ownerResetBtn) ownerResetBtn.style.display = 'none';
+  }
+  ownerHidden.value = ownerVal;
+}
+
+// 负责人下拉变化处理
+function onOwnerChange() {
+  const ownerSelect = document.getElementById('ownerSelect');
+  const ownerText = document.getElementById('ownerText');
+  const ownerResetBtn = document.getElementById('ownerResetBtn');
+  const ownerHidden = document.getElementById('owner');
+  
+  if (!ownerSelect || !ownerText || !ownerResetBtn || !ownerHidden) return;
+  
+  const val = ownerSelect.value;
+  if (val === '__other__') {
+    // 选了"其他"：隐藏下拉，显示手动输入框和重新选择按钮
+    ownerSelect.style.display = 'none';
+    ownerText.style.display = 'block';
+    ownerResetBtn.style.display = 'block';
+    ownerText.focus();
+    ownerHidden.value = ownerText.value.trim();
+  } else {
+    // 选了具体负责人：隐藏手动输入框，显示下拉
+    ownerSelect.style.display = 'block';
+    ownerText.style.display = 'none';
+    ownerResetBtn.style.display = 'none';
+    ownerHidden.value = val;
+  }
+}
+
+// 重新选择负责人（切回下拉）
+function resetOwnerSelect() {
+  const ownerSelect = document.getElementById('ownerSelect');
+  const ownerText = document.getElementById('ownerText');
+  const ownerResetBtn = document.getElementById('ownerResetBtn');
+  const ownerHidden = document.getElementById('owner');
+  
+  if (!ownerSelect || !ownerText || !ownerResetBtn || !ownerHidden) return;
+  
+  ownerSelect.style.display = 'block';
+  ownerText.style.display = 'none';
+  ownerResetBtn.style.display = 'none';
+  ownerSelect.value = '';
+  ownerText.value = '';
+  ownerHidden.value = '';
+}
+
+// 手动输入其他负责人时，同步到hidden字段，并控制"重新选择"按钮显隐
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.id === 'ownerText') {
+    const ownerHidden = document.getElementById('owner');
+    const ownerResetBtn = document.getElementById('ownerResetBtn');
+    const val = e.target.value.trim();
+    if (ownerHidden) ownerHidden.value = val;
+    // 有内容时隐藏重新选择按钮，为空时显示
+    if (ownerResetBtn) ownerResetBtn.style.display = val === '' ? 'block' : 'none';
+  }
+});
+
+// 移动端：切换侧边栏
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    sidebar.classList.toggle('open');
+  }
+}
+
 // 全局变量：待应用的筛选条件（数据加载完成后应用）
 let pendingSumFilter = null;
 
@@ -7506,13 +7915,15 @@ function loadOrders(retryCount) {
       console.log('RPC查询匹配:', (res.data || []).length, '条');
       handleResult(res.data);
     }).catch(handleError);
+  } else if (currentRole === 'sales') {
+    // 销售走 SECURITY DEFINER RPC 绕过 RLS，按负责人姓名查（改单指派后也能看到）
+    sbClient.rpc('get_visible_orders', { p_role: 'sales', p_user_name: currentUserName }).then(function (res) {
+      if (res.error) { handleError(res.error); return; }
+      handleResult(res.data || []);
+    }).catch(handleError);
   } else {
-    // 负责人、老板、销售总监看所有订单，销售只看自己的
-    let q = sbClient.from('orders').select('*');
-    if (currentRole !== 'admin' && currentRole !== 'boss' && currentRole !== 'director') {
-      q = q.eq('user_id', currentUid); // 销售只看自己负责的订单
-    }
-    q.order('id', { ascending: false }).then(function (res) {
+    // 负责人、老板、销售总监看所有订单（RLS已放行）
+    sbClient.from('orders').select('*').order('id', { ascending: false }).then(function (res) {
       if (res.error) {
         handleError(res.error);
         return;
@@ -7893,19 +8304,24 @@ function loadOrderPage(id) {
     return;
   }
 
-  // 负责人和销售：直接查询
+  // 销售走 RPC 绕过 RLS（改单指派后也能打开）
+  if (currentRole === 'sales') {
+    sbClient.rpc('get_order_by_id_for_user', { p_id: parseInt(id), p_role: 'sales', p_user_name: currentUserName }).then(function (res) {
+      if (res.error || !res.data || !res.data[0]) {
+        alert('加载订单失败，订单可能不存在');
+        return;
+      }
+      showOrderDetailReadOnly(res.data[0], id);
+    }).catch(function () { alert('加载订单失败，订单可能不存在'); });
+    return;
+  }
+  // 负责人、老板、销售总监：直接查询
   sbClient.from('orders').select('*').eq('id', id).limit(1).then(function (res) {
     if (res.error || !res.data || !res.data[0]) {
       alert('加载订单失败，订单可能不存在');
       return;
     }
-    const o = res.data[0];
-    // 权限校验：负责人能看所有；销售能看自己的
-    if (currentRole !== 'admin' && o.owner !== currentUserName) {
-      alert('无权查看该订单');
-      return;
-    }
-    showOrderDetailReadOnly(o, id);
+    showOrderDetailReadOnly(res.data[0], id);
   });
 }
 
@@ -7992,8 +8408,73 @@ function showOrderDetailReadOnly(o, id) {
     if (deleteBtn && currentRole === 'admin') {
       deleteBtn.style.display = 'inline-block';
     }
+    // 负责人：恢复鱼缸编号可编辑，并挂保存按钮（用于待下定→生产中）
+    if (currentRole === 'admin') {
+      setupDetailTankNo(o, id);
+    }
     window.scrollTo(0, 0);
   }, 1500); // 等待 loadOrderIntoForm 的延迟操作完成
+}
+
+// 详情页：负责人手动填写鱼缸编号（现货由销售填单时选好，这里是手填工厂编号）
+function setupDetailTankNo(o, id) {
+  const tankSel = document.getElementById('tankNo');
+  if (!tankSel) return;
+  const field = tankSel.closest('.field');
+  if (!field) return;
+
+  // 隐藏原来的下拉框（现货选择用），改为手动输入框
+  tankSel.style.display = 'none';
+
+  // 移除旧的输入区（防止重复）
+  const oldWrap = field.querySelector('.detail-tank-input-wrap');
+  if (oldWrap) oldWrap.remove();
+
+  const curNo = o.tank_no || '';
+  const wrap = document.createElement('div');
+  wrap.className = 'detail-tank-input-wrap';
+  wrap.style.cssText = 'width:100%;';
+  wrap.innerHTML =
+    '<input type="text" class="detail-tank-input" placeholder="请手动输入鱼缸编号" '
+    + 'style="width:100%;padding:8px 10px;border:1px solid #d9dde3;border-radius:6px;font-size:14px;box-sizing:border-box;">'
+    + '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;">'
+    + '<button type="button" class="btn btn-primary detail-tank-save" style="display:none;padding:6px 16px;">保存鱼缸编号</button>'
+    + '<span class="detail-tank-msg" style="font-size:12px;color:#16a34a;"></span>'
+    + '</div>';
+  // 插到下拉框后面
+  tankSel.parentNode.insertBefore(wrap, tankSel.nextSibling);
+
+  const input = wrap.querySelector('.detail-tank-input');
+  const saveBtn = wrap.querySelector('.detail-tank-save');
+  const msg = wrap.querySelector('.detail-tank-msg');
+  input.value = curNo; // 已有编号则预填
+
+  // 改动后才出现保存按钮
+  input.addEventListener('input', function() {
+    msg.textContent = '';
+    const v = input.value.trim();
+    if (v && v !== curNo) {
+      saveBtn.style.display = 'inline-block';
+    } else {
+      saveBtn.style.display = 'none';
+    }
+  });
+
+  saveBtn.addEventListener('click', function() {
+    const v = input.value.trim();
+    if (!v) { msg.style.color = '#e11d48'; msg.textContent = '请填写鱼缸编号'; return; }
+    saveBtn.disabled = true; saveBtn.textContent = '保存中...';
+    sbClient.rpc('admin_set_tank_no', { p_id: parseInt(id), p_tank_no: v }).then(function (res) {
+      saveBtn.disabled = false; saveBtn.textContent = '保存鱼缸编号';
+      if (res.error) { msg.style.color = '#e11d48'; msg.textContent = '保存失败：' + (res.error.message || '网络错误'); return; }
+      msg.style.color = '#16a34a'; msg.textContent = '已保存，状态更新为生产中';
+      saveBtn.style.display = 'none';
+      setTimeout(function () { loadOrderPage(id); }, 800);
+    }).catch(function(err) {
+      saveBtn.disabled = false; saveBtn.textContent = '保存鱼缸编号';
+      msg.style.color = '#e11d48'; msg.textContent = '保存失败：' + (err.message || '网络错误');
+    });
+  });
 }
 
 // 加载历史版本快照（只读）
@@ -8014,6 +8495,7 @@ function makePayload(d) {
     province: d.province, city: d.city, district: d.district, detail: d.detail,
     order_date: d.orderDate || null, deliver_date: d.expectDate || null,
     deliver2: d.deliver2 || null, installer: d.installer || '',
+    owner: d.owner || '未知',
     total_orig: parseFloat(d.totalOrig) || 0, total_amount: parseFloat(d.total) || 0,
     final_price: parseFloat(d.finalPrice) || 0,
     deposit_method: d.payMethod, deposit_amount: parseFloat(d.deposit) || 0,
@@ -8092,7 +8574,7 @@ function fillFishRow(row, it) {
   const qty = row.querySelector('.qty');
   if (qty) qty.value = (it.qty == null || it.qty === '') ? '' : it.qty;
   // 备注：品牌/型号非"其他" → 四下拉；否则手动文本框
-  // 延迟回填，等待fish-opt下拉异步填充完成
+  // 加长延迟，确保fish-opt下拉异步填充完成后再回填，避免被change事件清空
   setTimeout(function () {
     const isManual = (brandSel && brandSel.value === '__other__') || (modelSel && modelSel.value === '__other__');
     const freeNote = row.querySelector('.fish-free-note');
@@ -8101,20 +8583,26 @@ function fillFishRow(row, it) {
       freeNote.style.display = 'block';
       if (typeof autoResize === 'function') autoResize(freeNote);
     } else if (!isManual) {
+      // 不再按顺序对应，改为按data-fish属性精确匹配，避免错位
       const parts = String(it.remark || '').split(/\s+/).filter(Boolean);
-      // 只回填可见的下拉（隐藏的如柜门款式/底柜不参与，避免错位）
-      const visibleOpts = Array.prototype.filter.call(row.querySelectorAll('.fish-opt'), function (el) {
-        return el.style.display !== 'none' && el.offsetParent !== null;
-      });
-      visibleOpts.forEach(function (s2, i) {
-        const v = parts[i] || '';
+      // 四个下拉的顺序：柜体、岩板、溢流、底滤（和保存时的顺序一致）
+      const fishKeys = ['cabinet', 'rock', 'overflow', 'filter'];
+      parts.forEach(function(v, i) {
+        if (!v) return;
+        const key = fishKeys[i];
+        if (!key) return;
+        // 找到对应属性的下拉框
+        const sel = row.querySelector('.fish-opt[data-fish="' + key + '"]');
+        if (!sel) return;
+        // 检查这个值在选项里是否存在
         let found = false;
-        Array.prototype.forEach.call(s2.options, function (op) { if (op.value === v) found = true; });
-        if (found) s2.value = v;
+        Array.prototype.forEach.call(sel.options, function (op) { if (op.value === v) found = true; });
+        if (found) sel.value = v;
       });
     }
     updateRowState(row);
-  }, 150);
+    recalc();
+  }, 800);
 }
 
 function fillLogiRow(row, it) {
@@ -8280,6 +8768,26 @@ function loadOrderIntoForm(o) {
   // 备注
   bottomRemark.value = o.notes || '';
   if (typeof autoResize === 'function') autoResize(bottomRemark);
+  
+  // 回填负责人字段（admin角色才显示下拉）
+  if (currentRole === 'admin') {
+    const ownerDisplay = document.getElementById('ownerDisplay');
+    const ownerWrap = document.querySelector('.owner-wrap');
+    if (ownerDisplay) ownerDisplay.style.display = 'none';
+    if (ownerWrap) ownerWrap.style.display = 'block';
+    if (o.owner) {
+      // 记录待回填值：无论销售列表是否已加载完都能正确设置
+      window._pendingOwner = o.owner;
+      if (typeof applyOwnerValue === 'function') applyOwnerValue(o.owner);
+    }
+  } else {
+    // 其他角色：只读框显示订单负责人
+    const ownerDisplay = document.getElementById('ownerDisplay');
+    const ownerHidden = document.getElementById('owner');
+    if (ownerDisplay && o.owner) ownerDisplay.value = o.owner;
+    if (ownerHidden && o.owner) ownerHidden.value = o.owner;
+  }
+  
   // 延迟调用 recalc，等待明细行完全加载后再重新计算
   setTimeout(function() {
     recalc();
@@ -8362,12 +8870,14 @@ function startEditOrder(id) {
     const btn = orderForm.querySelector('button[type="submit"]');
     if (btn) btn.textContent = '保存改单';
 
-    // 9. 改单：原表定金三项不允许修改
-    if (payMethodSel) payMethodSel.disabled = true;
-    if (payMethodText) payMethodText.disabled = true;
-    if (payMethodDouyin) payMethodDouyin.disabled = true;
-    if (depositBox) depositBox.disabled = true;
-    if (depositDateBox) depositDateBox.disabled = true;
+    // 9. 改单：定金三项锁定；admin（负责人）解锁可改
+    if (currentRole !== 'admin') {
+      if (payMethodSel) payMethodSel.disabled = true;
+      if (payMethodText) payMethodText.disabled = true;
+      if (payMethodDouyin) payMethodDouyin.disabled = true;
+      if (depositBox) depositBox.disabled = true;
+      if (depositDateBox) depositDateBox.disabled = true;
+    }
 
     window.scrollTo(0, 0);
   });
@@ -9136,15 +9646,21 @@ function loadDashboardData(retryCount) {
     return;
   }
 
-  // 查询所有订单（负责人、老板、销售总监看全部，销售和安装人员看自己的）
-  let query = sbClient.from('orders').select('*').order('created_at', { ascending: false });
-  if (currentRole !== 'admin' && currentRole !== 'boss' && currentRole !== 'director') {
-    query = query.eq('owner', currentUserName);
+  // 销售走 RPC 绕过 RLS；其余角色直接查询
+  let orderPromise;
+  if (currentRole === 'sales') {
+    orderPromise = sbClient.rpc('get_visible_orders', { p_role: 'sales', p_user_name: currentUserName });
+  } else {
+    let query = sbClient.from('orders').select('*').order('created_at', { ascending: false });
+    if (currentRole !== 'admin' && currentRole !== 'boss' && currentRole !== 'director') {
+      query = query.eq('owner', currentUserName);
+    }
+    orderPromise = query;
   }
 
   // 并行查询订单和跟进记录
   Promise.all([
-    query,
+    orderPromise,
     sbClient.from('tank_progress').select('*').order('created_at', { ascending: false })
   ]).then(function (results) {
     const res = results[0];
