@@ -7617,8 +7617,15 @@ function fillFishFromRemark(row, remark) {
     if (!val) return;
     const sel = row.querySelector('.fish-opt[data-fish="' + key + '"]');
     if (!sel) return;
-    const has = Array.prototype.some.call(sel.options, function (o) { return o.value === val; });
-    if (has) sel.value = val;
+    let has = Array.prototype.some.call(sel.options, function (o) { return o.value === val; });
+    if (!has) {
+      // 现货值不在标准下拉里：动态补一项，以原样文本显示并锁定
+      var opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      sel.appendChild(opt);
+    }
+    sel.value = val;
   };
   set('cabinet', rk.cabinet);
   set('rock', rk.rock);
@@ -7653,14 +7660,19 @@ document.getElementById('tankNo').addEventListener('change', function () {
           if (hasM) {
             modelSel.value = info.model;
             modelSel.dispatchEvent(new Event('change', { bubbles: true }));
-            // 型号确定后填备注，再锁定
-            setTimeout(function () {
-              fillFishFromRemark(fishRow, info.remark);
-              setFishRowLocked(true);
-            }, 350);
           } else {
-            setFishRowLocked(true);
+            // 现货型号不在标准下拉里：动态补一项，原样显示
+            var mo = document.createElement('option');
+            mo.value = info.model;
+            mo.textContent = info.model;
+            modelSel.appendChild(mo);
+            modelSel.value = info.model;
           }
+          // 型号确定后填备注，再锁定
+          setTimeout(function () {
+            fillFishFromRemark(fishRow, info.remark);
+            setFishRowLocked(true);
+          }, 350);
         }, 250);
       }
     }
