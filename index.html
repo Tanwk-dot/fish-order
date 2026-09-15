@@ -3863,6 +3863,7 @@ function showTab(name) {
     }
   }
   if (name === 'form' && !window._isEditMode && !currentDraftId) resetOrderForm();
+  orderCommitted = false; // 进填单页复位防重复标志，避免上一单残留导致误拦
   if (name === 'form') loadStocks(); // 确保鱼缸编号下拉有数据
   if (name === 'summary') loadOrders();
   if (name === 'stock') loadStocks();
@@ -6488,9 +6489,14 @@ function collectFormData() {
       if (fishFree && fishFree.style.display !== 'none' && (fishFree.value || '').trim()) {
         remark = fishFree.value.trim();
       } else {
-        var parts = [];
-        row.querySelectorAll('.fish-opt').forEach(function (s) { if (s.value) parts.push(s.value); });
-        remark = parts.join('  ');
+        var fishLabels = { cabinet: '柜体', door: '柜门', rock: '岩板', flow: '溢流', filter: '底滤', base: '底座' };
+        var segs = [];
+        row.querySelectorAll('.fish-opt').forEach(function (s) {
+          var k = s.getAttribute('data-fish');
+          var v = (s.value || '').trim();
+          if (v && fishLabels[k]) segs.push(fishLabels[k] + ':' + v);
+        });
+        remark = segs.join(' | ');
       }
     } else {
       var installSel = row.querySelector('.install-wrap');
@@ -8644,21 +8650,37 @@ function fillFishRow(row, it) {
       freeNote.style.display = 'block';
       if (typeof autoResize === 'function') autoResize(freeNote);
     } else if (!isManual) {
-      // 不再按顺序对应，改为按data-fish属性精确匹配，避免错位
-      const parts = String(it.remark || '').split(/\s+/).filter(Boolean);
-      // 四个下拉的顺序：柜体、岩板、溢流、底滤（和保存时的顺序一致）
-      const fishKeys = ['cabinet', 'rock', 'overflow', 'filter'];
-      parts.forEach(function(v, i) {
-        if (!v) return;
-        const key = fishKeys[i];
-        if (!key) return;
-        // 找到对应属性的下拉框
-        const sel = row.querySelector('.fish-opt[data-fish="' + key + '"]');
+      const fishLabelToKey = { '柜体': 'cabinet', '柜门': 'door', '岩板': 'rock', '溢流': 'flow', '底滤': 'filter', '底座': 'base' };
+      const rawRemark = String(it.remark || '');
+      const kvPairs = {};
+      // 新格式：柜体:X | 岩板:X | 溢流:X | 底滤:X
+      rawRemark.split('|').forEach(function (seg) {
+        const m = seg.trim().match(/^([^:：]+)[:：](.+)$/);
+        if (m) {
+          const k = fishLabelToKey[m[1].trim()];
+          if (k) kvPairs[k] = m[2].trim();
+        }
+      });
+      // 老数据兼容：无中文冒号格式时按位置兜底（柜体/岩板/溢流/底滤）
+      if (Object.keys(kvPairs).length === 0) {
+        const oldOrder = ['cabinet', 'rock', 'flow', 'filter'];
+        const oldParts = rawRemark.split(/\s+/).filter(Boolean);
+        oldParts.forEach(function (v, i) { if (oldOrder[i]) kvPairs[oldOrder[i]] = v; });
+      }
+      // 按 data-fish 精确回填；值不在标准选项里时动态补 option（现货值）
+      Object.keys(kvPairs).forEach(function (k) {
+        const sel = row.querySelector('.fish-opt[data-fish="' + k + '"]');
         if (!sel) return;
-        // 检查这个值在选项里是否存在
+        const v = kvPairs[k];
+        if (!v) return;
         let found = false;
         Array.prototype.forEach.call(sel.options, function (op) { if (op.value === v) found = true; });
-        if (found) sel.value = v;
+        if (!found) {
+          const opt = document.createElement('option');
+          opt.value = v; opt.textContent = v;
+          sel.appendChild(opt);
+        }
+        sel.value = v;
       });
     }
     updateRowState(row);
