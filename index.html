@@ -6257,6 +6257,11 @@ orderForm.addEventListener('submit', function (e) {
         await sbClient.rpc('save_order_version', { p_order_id: editOrderId, p_snapshot: beforeData ? beforeData[0] : makeSnapshot(d, uid, editOrderNo) });
         const { error: eUpd } = await sbClient.rpc('update_order_from_form', { p_id: editOrderId, p_data: makePayload(d) });
         if (eUpd) throw eUpd;
+        // 改单选了现货编号：标记已售
+        if (d.tankNo) {
+          const { error: errS } = await sbClient.rpc('mark_stock_sold', { p_sn: d.tankNo, p_locked_by: d.owner });
+          if (errS) console.error('改单-现货标记已售失败：', errS.message);
+        }
         document.getElementById('successModalTitle').textContent = '改单成功';
         document.getElementById('successOrderNo').textContent = editOrderNo;
         // 改单模式：隐藏继续填单按钮，返回首页改为关闭窗口
