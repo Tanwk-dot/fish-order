@@ -3856,10 +3856,15 @@ function showTab(name) {
   } else {
     if (topnav) topnav.style.display = 'none';
     if (userbar) userbar.style.display = 'none';
-    // 改单模式下不显示通用工具栏（使用改单专用返回按钮）
-    if (pageToolbar && !window._isEditMode) {
-      pageToolbar.style.display = 'flex';
-      if (pageTitle) pageTitle.textContent = titles[name] || '';
+    // 仅填单页显示工具栏（含返回按钮）；其他主窗口页签不显示，避免误关窗口
+    // 改单模式也不显示（使用改单专用返回按钮）
+    if (pageToolbar) {
+      if (!window._isEditMode && name === 'form') {
+        pageToolbar.style.display = 'flex';
+        if (pageTitle) pageTitle.textContent = titles[name] || '';
+      } else {
+        pageToolbar.style.display = 'none';
+      }
     }
   }
   if (name === 'form' && !window._isEditMode && !currentDraftId) resetOrderForm();
@@ -6392,7 +6397,13 @@ depositDateBox.addEventListener('change', function () { hideFieldErr('depositDat
 function collectExtraPayments() {
   const arr = [];
   extraPayList.querySelectorAll('.extra-pay-row').forEach(function (r) {
-    const m = (r.querySelector('.ep-method').value || '').trim();
+    let m = (r.querySelector('.ep-method').value || '').trim();
+    if (m === '__other__') {
+      m = (r.querySelector('.ep-method-text').value || '').trim();
+    } else if (m === '抖店') {
+      const dyv = (r.querySelector('.ep-method-douyin').value || '').trim();
+      if (dyv) m = '抖店:' + dyv;
+    }
     const a = parseFloat(r.querySelector('.ep-amount').value) || 0;
     const dt = r.querySelector('.ep-date').value;
     arr.push({ method: m, amount: a, date: dt });
