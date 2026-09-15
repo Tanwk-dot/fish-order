@@ -7797,7 +7797,11 @@ const SUM_COLS = [
   { k: 'installer', t: '安装人员', get: function (o) { if (!o.installer) return '无上门安装'; if (!o.delivered_team) return '待填写'; return o.delivered_team; } },
   { k: 'final', t: '最终价格', num: true, get: function (o) { return fmtMoney(o.final_price); } },
   { k: 'pay', t: '定金方式', get: function (o) { return o.deposit_method || ''; } },
-  { k: 'deposit', t: '定金金额', num: true, get: function (o) { return fmtMoney(o.deposit_amount); } },
+  { k: 'deposit', t: '已收总金额', num: true, get: function (o) {
+    let extra = 0;
+    (o.extra_payments || []).forEach(function (p) { extra += parseFloat(p.amount) || 0; });
+    return fmtMoney((parseFloat(o.deposit_amount) || 0) + extra);
+  } },
   { k: 'depositDate', t: '定金日期', get: function (o) { return o.deposit_date || ''; } },
   { k: 'tail', t: '尾款', num: true, get: function (o) { return orderTail(o); } },
   { k: 'status', t: '状态', html: true, get: function (o) {
@@ -8124,7 +8128,9 @@ function render() {
   let fSumFinal = 0, fSumDeposit = 0;
   filteredOrders.forEach(function (o) {
     fSumFinal += parseFloat(o.final_price) || 0;
-    fSumDeposit += parseFloat(o.deposit_amount) || 0;
+    let extra = 0;
+    (o.extra_payments || []).forEach(function (p) { extra += parseFloat(p.amount) || 0; });
+    fSumDeposit += (parseFloat(o.deposit_amount) || 0) + extra;
   });
   document.getElementById('orderCount').textContent = filteredOrders.length;
   document.getElementById('sumFinal').textContent = fmtMoney(fSumFinal);
