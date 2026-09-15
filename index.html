@@ -7361,10 +7361,29 @@ function loadProgressList() {
       renderProgressList({});
       return;
     }
-    sbClient.from('tank_progress').select('*').in('tank_no', tankNos).order('created_at', { ascending: false }).then(function (res2) {
+    // 并行查跟进记录 + 现货表；现货鱼缸直接视为已完成，无需生产跟进
+    Promise.all([
+      sbClient.from('tank_progress').select('*').in('tank_no', tankNos).order('created_at', { ascending: false }),
+      sbClient.from('stocks').select('sn').in('sn', tankNos)
+    ]).then(function (results) {
+      const res2 = results[0];
+      const resStock = results[1];
       const latestMap = {};
       (res2.data || []).forEach(function (r) {
         if (!latestMap[r.tank_no]) latestMap[r.tank_no] = r;
+      });
+      // 现货鱼缸：编号在 stocks 表中存在 → 直接标记已完成
+      const soldSn = {};
+      (resStock.data || []).forEach(function (s) { soldSn[s.sn] = true; });
+      progressOrders.forEach(function (o) {
+        if (soldSn[o.tank_no] && !latestMap[o.tank_no]) {
+          latestMap[o.tank_no] = {
+            tank_no: o.tank_no,
+            status: '已完成',
+            created_at: o.order_date || new Date().toISOString(),
+            factory_reply: '现货成交，无需生产跟进'
+          };
+        }
       });
       renderProgressList(latestMap);
     }).catch(function () {
