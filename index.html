@@ -8643,17 +8643,15 @@ function fillFishRow(row, it) {
   // 备注：品牌/型号非"其他" → 四下拉；否则手动文本框
   // 加长延迟，确保fish-opt下拉异步填充完成后再回填，避免被change事件清空
   setTimeout(function () {
-    const isManual = (brandSel && brandSel.value === '__other__') || (modelSel && modelSel.value === '__other__');
     const freeNote = row.querySelector('.fish-free-note');
-    if (isManual && freeNote) {
-      freeNote.value = it.remark || '';
-      freeNote.style.display = 'block';
-      if (typeof autoResize === 'function') autoResize(freeNote);
-    } else if (!isManual) {
-      const fishLabelToKey = { '柜体': 'cabinet', '柜门': 'door', '岩板': 'rock', '溢流': 'flow', '底滤': 'filter', '底座': 'base' };
-      const rawRemark = String(it.remark || '');
-      const kvPairs = {};
-      // 新格式：柜体:X | 岩板:X | 溢流:X | 底滤:X
+    const rawRemark = String(it.remark || '');
+    const fishLabelToKey = { '柜体': 'cabinet', '柜门': 'door', '岩板': 'rock', '溢流': 'flow', '底滤': 'filter', '底座': 'base' };
+    // 是否为结构化鱼缸属性（含 柜体/岩板/溢流/底滤 任一关键词）
+    const hasStructuredFish = /柜体|岩板|溢流|底滤/.test(rawRemark);
+    const isManual = (brandSel && brandSel.value === '__other__') || (modelSel && modelSel.value === '__other__');
+    const kvPairs = {};
+    if (hasStructuredFish) {
+      // 结构化：柜体:X | 岩板:X | 溢流:X | 底滤:X —— 优先按 data-fish 回填，不受品牌是否“其他”影响
       rawRemark.split('|').forEach(function (seg) {
         const m = seg.trim().match(/^([^:：]+)[:：](.+)$/);
         if (m) {
@@ -8661,28 +8659,33 @@ function fillFishRow(row, it) {
           if (k) kvPairs[k] = m[2].trim();
         }
       });
+      if (freeNote) freeNote.style.display = 'none';
+    } else if (isManual && freeNote) {
+      // 品牌/型号真的选了“其他”：备注走纯文本框
+      freeNote.value = rawRemark;
+      freeNote.style.display = 'block';
+      if (typeof autoResize === 'function') autoResize(freeNote);
+    } else {
       // 老数据兼容：无中文冒号格式时按位置兜底（柜体/岩板/溢流/底滤）
-      if (Object.keys(kvPairs).length === 0) {
-        const oldOrder = ['cabinet', 'rock', 'flow', 'filter'];
-        const oldParts = rawRemark.split(/\s+/).filter(Boolean);
-        oldParts.forEach(function (v, i) { if (oldOrder[i]) kvPairs[oldOrder[i]] = v; });
-      }
-      // 按 data-fish 精确回填；值不在标准选项里时动态补 option（现货值）
-      Object.keys(kvPairs).forEach(function (k) {
-        const sel = row.querySelector('.fish-opt[data-fish="' + k + '"]');
-        if (!sel) return;
-        const v = kvPairs[k];
-        if (!v) return;
-        let found = false;
-        Array.prototype.forEach.call(sel.options, function (op) { if (op.value === v) found = true; });
-        if (!found) {
-          const opt = document.createElement('option');
-          opt.value = v; opt.textContent = v;
-          sel.appendChild(opt);
-        }
-        sel.value = v;
-      });
+      const oldOrder = ['cabinet', 'rock', 'flow', 'filter'];
+      const oldParts = rawRemark.split(/\s+/).filter(Boolean);
+      oldParts.forEach(function (v, i) { if (oldOrder[i]) kvPairs[oldOrder[i]] = v; });
     }
+    // 按 data-fish 精确回填；值不在标准选项里时动态补 option（现货值如水鸦/梵高印象等）
+    Object.keys(kvPairs).forEach(function (k) {
+      const sel = row.querySelector('.fish-opt[data-fish="' + k + '"]');
+      if (!sel) return;
+      const v = kvPairs[k];
+      if (!v) return;
+      let found = false;
+      Array.prototype.forEach.call(sel.options, function (op) { if (op.value === v) found = true; });
+      if (!found) {
+        const opt = document.createElement('option');
+        opt.value = v; opt.textContent = v;
+        sel.appendChild(opt);
+      }
+      sel.value = v;
+    });
     updateRowState(row);
     recalc();
   }, 800);
