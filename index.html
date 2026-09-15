@@ -8490,6 +8490,16 @@ function showOrderDetailReadOnly(o, id) {
     if (currentRole === 'admin') {
       setupDetailTankNo(o, id);
     }
+    // 校正鱼缸行备注：其他品牌手填备注在 freeNote 里，确保显示出来
+    document.querySelectorAll('#topRows tr').forEach(function(row) {
+      const freeNote = row.querySelector('.fish-free-note');
+      if (freeNote && freeNote.value && freeNote.value.trim()) {
+        freeNote.style.display = 'block';
+        const fo = row.querySelector('.fish-options');
+        if (fo) fo.style.display = 'none';
+        if (typeof autoResize === 'function') autoResize(freeNote);
+      }
+    });
     window.scrollTo(0, 0);
   }, 1500); // 等待 loadOrderIntoForm 的延迟操作完成
 }
