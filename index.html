@@ -3139,6 +3139,11 @@ body.exporting .topnav { display: none; }
       <button type="button" id="exportCsvBtn">导出 CSV（Excel 可开）</button>
       <button type="button" id="colPickBtn" class="btn-ghost">选择显示列</button>
       <span id="count"></span>
+      <span style="margin-left:12px;color:#555;font-size:13px;white-space:nowrap;">下单日期
+        <input type="date" id="sumDateStart" onchange="applySumFilter()" style="padding:3px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+        至
+        <input type="date" id="sumDateEnd" onchange="applySumFilter()" style="padding:3px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+      </span>
     </div>
     <div class="sum">共 <b id="orderCount">0</b> 单 ｜ 合计营业额 <b id="sumFinal">0.00</b> 元 ｜ 合计收款 <b id="sumDeposit">0.00</b> 元 ｜ 合计待收款 <b id="sumDue">0.00</b> 元</div>
     <div id="errMsg"></div>
@@ -8066,6 +8071,15 @@ function render() {
       filterHtml = '<select id="fSum_' + c.k + '" class="th-filter" onchange="applySumFilter()">'
         + statuses.map(function(s) { return '<option value="' + s + '"' + ((sumFilters[c.k] || '') === s ? ' selected' : '') + '>' + (s || '全部状态') + '</option>'; }).join('')
         + '</select>';
+    } else if (c.k === 'owner') {
+      // 负责人列用下拉，选项从已有订单收集
+      const owners = [];
+      allOrders.forEach(function (o) { if (o.owner && owners.indexOf(o.owner) === -1) owners.push(o.owner); });
+      owners.sort();
+      filterHtml = '<select id="fSum_owner" class="th-filter" onchange="applySumFilter()">'
+        + '<option value="">全部负责人</option>'
+        + owners.map(function (n) { return '<option value="' + esc(n) + '"' + ((sumFilters.owner || '') === n ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('')
+        + '</select>';
     } else {
       // 其他列用输入框
       filterHtml = '<input id="fSum_' + c.k + '" class="th-filter" placeholder="搜索' + c.t + '" value="' + (sumFilters[c.k] || '') + '" oninput="applySumFilter()">';
@@ -8095,6 +8109,14 @@ function render() {
       } else {
         if (cellVal.toLowerCase().indexOf(val.toLowerCase()) === -1) return false;
       }
+    }
+    // 下单日期区间筛选
+    const ds = (document.getElementById('sumDateStart') || {}).value || '';
+    const de = (document.getElementById('sumDateEnd') || {}).value || '';
+    if (ds || de) {
+      const od = String(o.order_date || '').slice(0, 10);
+      if (ds && od < ds) return false;
+      if (de && od > de) return false;
     }
     return true;
   });
