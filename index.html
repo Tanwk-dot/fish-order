@@ -8657,9 +8657,11 @@ function fillFishRow(row, it) {
     const freeNote = row.querySelector('.fish-free-note');
     const rawRemark = String(it.remark || '');
     const fishLabelToKey = { '柜体': 'cabinet', '柜门': 'door', '岩板': 'rock', '溢流': 'flow', '底滤': 'filter', '底座': 'base' };
-    // 是否为结构化鱼缸属性（含 柜体/岩板/溢流/底滤 任一关键词）
-    const hasStructuredFish = /柜体|岩板|溢流|底滤/.test(rawRemark);
+    // 是否为结构化鱼缸属性：必须是 “柜体:X | 岩板:X” 这种带冒号的键值对，
+    // 仅纯文本里提到“岩板/柜体”字样不算，避免误吞用户手填的备注
+    const hasStructuredFish = /(柜体|柜门|岩板|溢流|底滤|底座)\s*[:：]/.test(rawRemark);
     const isManual = (brandSel && brandSel.value === '__other__') || (modelSel && modelSel.value === '__other__');
+    const fishOptions = row.querySelector('.fish-options');
     const kvPairs = {};
     if (hasStructuredFish) {
       // 结构化：柜体:X | 岩板:X | 溢流:X | 底滤:X —— 优先按 data-fish 回填，不受品牌是否“其他”影响
@@ -8672,9 +8674,10 @@ function fillFishRow(row, it) {
       });
       if (freeNote) freeNote.style.display = 'none';
     } else if (isManual && freeNote) {
-      // 品牌/型号真的选了“其他”：备注走纯文本框
+      // 品牌/型号真的选了“其他”：备注走纯文本框，隐藏四个下拉
       freeNote.value = rawRemark;
       freeNote.style.display = 'block';
+      if (fishOptions) fishOptions.style.display = 'none';
       if (typeof autoResize === 'function') autoResize(freeNote);
     } else {
       // 老数据兼容：无中文冒号格式时按位置兜底（柜体/岩板/溢流/底滤）
