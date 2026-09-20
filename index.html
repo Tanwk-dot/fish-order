@@ -6334,6 +6334,12 @@ orderForm.addEventListener('submit', function (e) {
       }
       const { error: err2 } = await sbClient.from('orders').update({ order_no: orderNo }).eq('id', id);
       if (err2) throw err2;
+      // 补录后同步订单号序列：手动编号序号 >= 当前序列值时推进，避免后续自动生成撞重复
+      if (isBackfillMode && orderNo) {
+        sbClient.rpc('sync_order_no_seq', { p_order_no: orderNo }).then(function (r) {
+          if (r.error) console.error('订单号序列同步失败：', r.error.message);
+        });
+      }
       // 首次提交保存版本 1（历史表单可查）
       await sbClient.rpc('save_order_version', { p_order_id: id, p_snapshot: makeSnapshot(d, uid, orderNo) });
       // 选了现货编号：先校验锁单归属（仅锁单者本人可下单），再标记已售
