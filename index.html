@@ -9686,7 +9686,7 @@ document.querySelectorAll('.menu-item').forEach(function (m) {
     if (tab === 'backfill') {
       // 补单模式：进入填单页面，标记为补单模式
       isBackfillMode = true;
-      showTab('form');
+      showTab('backfill');
       // 补单模式下订单号可手动输入
       const orderNoEl = document.getElementById('orderNo');
       if (orderNoEl) {
@@ -9705,7 +9705,7 @@ document.querySelectorAll('.home-card').forEach(function (c) {
     if (go === 'backfill') {
       // 补单模式：进入填单页面，标记为补单模式
       isBackfillMode = true;
-      showTab('form');
+      showTab('backfill');
       // 补单模式下订单号可手动输入
       const orderNoEl = document.getElementById('orderNo');
       if (orderNoEl) {
