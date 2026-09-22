@@ -8921,6 +8921,12 @@ function loadOrderIntoForm(o) {
   const feeRow = document.querySelector('#bottomRows .fee-row:not(.logi-row)');
   if (logi && logiRow) fillLogiRow(logiRow, logi);
   if (fee && feeRow) fillInstallRow(feeRow, fee);
+  // 回填安装人员姓名（delivered_team 形如 "蒋嘉诚、张三"，按顿号/逗号拆分填入格子）
+  const dtNames = String(o.delivered_team || '').split(/、|,|，/).map(function (x) { return x.trim(); }).filter(Boolean);
+  if (dtNames.length) {
+    const iBoxes = document.querySelectorAll('#installerBoxes .installer-box');
+    dtNames.forEach(function (nm, i) { if (iBoxes[i]) iBoxes[i].value = nm; });
+  }
   // 金额区
   totalOrigBox.value = fmtMoney(o.total_orig);
   totalBox.value = fmtMoney(o.total_amount);
@@ -9759,6 +9765,8 @@ initStockForm();
 
 // 标记安装完成：将已发货状态改为已交付
 function markInstalled(orderId) {
+  if (!orderId) orderId = window.currentOrderId;
+  if (!orderId) { alert('订单ID不存在'); return; }
   if (!confirm('确认该订单已安装完成？安装完成后状态将变为"已交付"。')) return;
   sbClient.rpc('mark_order_installed', { p_id: orderId }).then(function (res) {
     if (res.error) {
@@ -11196,31 +11204,6 @@ function deleteCurrentOrder() {
     window.close();
   }).catch(function(err) {
     alert('删除失败：' + (err.message || '网络错误'));
-  });
-}
-
-// 安装完成：标记订单为已交付
-function markInstalled() {
-  const id = window.currentOrderId;
-  if (!id) {
-    alert('订单ID不存在');
-    return;
-  }
-  if (!confirm('确认安装完成？安装完成后订单状态将变为"已交付"。')) {
-    return;
-  }
-  sbClient.rpc('mark_order_installed', { p_id: id }).then(function (res) {
-    if (res.error) {
-      alert('安装完成失败：' + (res.error.message || '网络错误'));
-      return;
-    }
-    alert('安装完成！订单状态已更新为"已交付"。');
-    // 重新加载订单详情
-    loadOrderPage(id);
-    // 刷新订单汇总
-    if (typeof loadOrders === 'function') loadOrders();
-  }).catch(function (err) {
-    alert('安装完成失败：' + (err.message || '网络错误'));
   });
 }
 
