@@ -3336,16 +3336,6 @@ body.exporting .topnav { display: none; }
         <div class="row">
           <div class="field" style="flex:0 1 220px;"><label>交付日期</label><input id="deliverDate" type="date"><div class="field-err" data-err="deliverDate"></div></div>
         </div>
-        <!-- 物流单号区域 -->
-        <div id="trackingWrap" style="display:none;margin-top:12px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <label style="font-size:13px;color:#333;font-weight:600;">物流单号（每个类别都需登记）</label>
-            <button type="button" id="addTrackingBtn" style="padding:5px 12px;border:1px solid #1667ff;border-radius:5px;background:#fff;color:#1667ff;cursor:pointer;font-size:12px;">+ 增加单号</button>
-          </div>
-          <div id="trackingList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          <div class="field-err" data-err="tracking"></div>
-          <div id="trackingStatus" style="margin-top:6px;font-size:12px;color:#888;"></div>
-        </div>
         <div id="deliverTeamWrap" style="display:none;margin-top:12px;">
           <label>安装人员（交付团队，几人填几格）</label>
           <div id="deliverTeamBoxes" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
@@ -7454,8 +7444,8 @@ function renderProgressList(latestMap) {
   const fReply = (document.getElementById('fProgReply') || {}).value || '';
   // 筛选数据
   let filtered = progressOrders.filter(function (o) {
-    const fish = (o.items || []).find(function (it) { return it.cat === '鱼缸'; });
-    const brandModel = fish ? (fish.brand || '') + ' ' + (fish.model || '') : '';
+    const fishRows = (o.items || []).filter(function (it) { return it.cat === '鱼缸'; });
+    const brandModel = fishRows.map(function (f) { return (f.brand || '') + ' ' + (f.model || ''); }).join('、');
     const latest = latestMap[o.tank_no] || null;
     const status = latest ? latest.status : '未跟进';
     const lastTime = latest ? fmtDateTime(latest.created_at) : '';
@@ -7477,8 +7467,8 @@ function renderProgressList(latestMap) {
     return;
   }
   tbody.innerHTML = filtered.map(function (o) {
-    const fish = (o.items || []).find(function (it) { return it.cat === '鱼缸'; });
-    const brandModel = fish ? (fish.brand || '') + ' ' + (fish.model || '') : '';
+    const fishRows = (o.items || []).filter(function (it) { return it.cat === '鱼缸'; });
+    const brandModel = fishRows.map(function (f) { return (f.brand || '') + ' ' + (f.model || ''); }).join('、');
     const latest = latestMap[o.tank_no] || null;
     const status = latest ? latest.status : '未跟进';
     const statusColor = status === '已完成' ? '#52c41a' : (status === '生产中' ? '#1667ff' : (status === '备料中' ? '#faad14' : '#999'));
@@ -8691,10 +8681,12 @@ function fillMiddleRow(row, it) {
   if (qty) qty.value = (it.qty == null || it.qty === '') ? '' : it.qty;
   const price = row.querySelector('.price');
   if (price) price.value = (parseFloat(it.price) || 0) ? parseFloat(it.price).toFixed(2) : '';
+  // 多鱼缸订单：第二条及以后的鱼缸行走中间行，其原价/总价是只读的，必须直接回填（普通器材行由 calcOriginal/recalc 自动算，不回填）
+  const isFishRow = it.cat === '鱼缸';
   const orig = row.querySelector('.orig');
-  if (orig && !orig.readOnly) orig.value = (parseFloat(it.orig) || 0) ? parseFloat(it.orig).toFixed(2) : '';
+  if (orig && (!orig.readOnly || isFishRow)) orig.value = (parseFloat(it.orig) || 0) ? parseFloat(it.orig).toFixed(2) : '';
   const amount = row.querySelector('.amount');
-  if (amount && !amount.readOnly) amount.value = (parseFloat(it.amount) || 0) ? parseFloat(it.amount).toFixed(2) : '';
+  if (amount && (!amount.readOnly || isFishRow)) amount.value = (parseFloat(it.amount) || 0) ? parseFloat(it.amount).toFixed(2) : '';
   // 延迟设置备注和autoResize，等待新行DOM渲染完成
   setTimeout(function () {
     const rm = row.querySelector('.remark');
@@ -8910,7 +8902,8 @@ function loadOrderIntoForm(o) {
   }, 800);
   items.forEach(function (it) {
     const cat = it.cat || '';
-    if (cat === '鱼缸' || cat === '物流费' || cat === '安装费') return;
+    if (cat === '物流费' || cat === '安装费') return;
+    if (cat === '鱼缸' && it === fishIt) return; // 第一条鱼缸已填入顶部固定行，其余鱼缸走中间行（多鱼缸订单不丢行）
     addRow();
     const trs = middleRows.querySelectorAll('tr');
     fillMiddleRow(trs[trs.length - 1], it);
@@ -9293,12 +9286,13 @@ function renderPayInfo() {
   if (!sel || !info) return;
   const o = payOrders.find(function (x) { return String(x.id) === sel.value; });
   if (!o) { info.style.display = 'none'; return; }
-  const fish = (o.items || []).find(function (it) { return it.cat === '鱼缸'; });
+  const fishRows = (o.items || []).filter(function (it) { return it.cat === '鱼缸'; });
+  const fishDesc = fishRows.map(function (f) { return (f.brand || '') + ' ' + (f.model || ''); }).join('、');
   const paid = payPaid(o);
   const tail = parseFloat(o.final_price || 0) - paid;
   info.innerHTML = '<b>' + esc(o.tank_no || '') + '</b><br>'
     + '客户：' + esc(o.customer || '') + '　订单号：' + esc(o.order_no || '') + '<br>'
-    + '鱼缸：' + esc((fish ? (fish.brand || '') + ' ' + (fish.model || '') : '')) + '<br>'
+    + '鱼缸：' + esc(fishDesc) + '<br>'
     + '最终价格：' + fmtMoney(o.final_price) + '　已收：' + fmtMoney(paid) + '　待收：' + fmtMoney(tail);
   info.style.display = 'block';
 }
@@ -9428,12 +9422,13 @@ function renderDeliverInfo() {
   if (!sel || !info) return;
   const o = deliverOrders.find(function (x) { return String(x.id) === sel.value; });
   if (!o) { info.style.display = 'none'; if (wrap) wrap.style.display = 'none'; return; }
-  const fish = (o.items || []).find(function (it) { return it.cat === '鱼缸'; });
+  const fishRows = (o.items || []).filter(function (it) { return it.cat === '鱼缸'; });
+  const fishDesc = fishRows.map(function (f) { return (f.brand || '') + ' ' + (f.model || ''); }).join('、');
   const paid = deliverPaid(o);
   const tail = parseFloat(o.final_price || 0) - paid;
   let html = '<b>' + esc(o.tank_no || '') + '</b><br>'
     + '客户：' + esc(o.customer || '') + '　订单号：' + esc(o.order_no || '') + '<br>'
-    + '鱼缸：' + esc((fish ? (fish.brand || '') + ' ' + (fish.model || '') : '')) + '<br>'
+    + '鱼缸：' + esc(fishDesc) + '<br>'
     + '最终价格：' + fmtMoney(o.final_price) + '　已收：' + fmtMoney(paid) + '　待收：' + fmtMoney(tail);
   if (o.installer) html += '<br>安装方式：' + esc(o.installer);
   info.innerHTML = html;
@@ -9456,172 +9451,9 @@ function renderDeliverInfo() {
       wrap.style.display = 'none';
     }
   }
-  // 物流单号：从订单 items 获取所有类别（排除物流费、安装费）
-  const trackingWrap = document.getElementById('trackingWrap');
-  const trackingList = document.getElementById('trackingList');
-  if (trackingWrap && trackingList) {
-    const allCats = [];
-    (o.items || []).forEach(function (it) {
-      if (it.cat && it.cat !== '物流费' && it.cat !== '安装费' && allCats.indexOf(it.cat) === -1) {
-        allCats.push(it.cat);
-      }
-    });
-    if (allCats.length > 0) {
-      window._deliverCats = allCats;
-      trackingList.innerHTML = '';
-      addTrackingRow(allCats[0]);
-      trackingWrap.style.display = 'block';
-      updateTrackingStatus();
-    } else {
-      trackingWrap.style.display = 'none';
-    }
-  }
 }
 
-// 物流单号相关函数
-function addTrackingRow(defaultCat) {
-  const trackingList = document.getElementById('trackingList');
-  if (!trackingList) return;
-  const cats = window._deliverCats || [];
-  const row = document.createElement('div');
-  row.className = 'tracking-row';
-  row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;';
-  // 单号输入框
-  const inp = document.createElement('input');
-  inp.className = 'tracking-input';
-  inp.placeholder = '请输入物流单号';
-  inp.style.cssText = 'flex:1;min-width:160px;height:34px;padding:6px 10px;border:1px solid #d9dde3;border-radius:6px;font-size:13px;box-sizing:border-box;';
-  row.appendChild(inp);
-  // 类别多选
-  const catBox = document.createElement('div');
-  catBox.className = 'tracking-cats';
-  catBox.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
-  cats.forEach(function (cat, idx) {
-    const label = document.createElement('label');
-    label.className = 'tracking-cat-label';
-    label.dataset.cat = cat;
-    label.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:12px;color:#555;cursor:pointer;white-space:nowrap;';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.className = 'tracking-cat';
-    cb.value = cat;
-    if (idx === 0 && defaultCat === cat) cb.checked = true;
-    label.appendChild(cb);
-    label.appendChild(document.createTextNode(cat));
-    catBox.appendChild(label);
-  });
-  // 初始更新可用类别
-  setTimeout(function () { updateTrackingCats(); }, 0);
-  row.appendChild(catBox);
-  // 删除按钮
-  const delBtn = document.createElement('button');
-  delBtn.type = 'button';
-  delBtn.textContent = '删除';
-  delBtn.style.cssText = 'padding:4px 10px;border:1px solid #e74c3c;border-radius:5px;background:#fff;color:#e74c3c;cursor:pointer;font-size:12px;flex-shrink:0;';
-  delBtn.addEventListener('click', function () {
-    row.remove();
-    updateTrackingCats();
-    updateTrackingStatus();
-  });
-  row.appendChild(delBtn);
-  trackingList.appendChild(row);
-  // 单号输入时更新状态
-  inp.addEventListener('input', updateTrackingStatus);
-  catBox.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
-    cb.addEventListener('change', function () {
-      updateTrackingCats();
-      updateTrackingStatus();
-    });
-  });
-}
-
-function getTrackingData() {
-  const rows = document.querySelectorAll('#trackingList .tracking-row');
-  const data = [];
-  rows.forEach(function (row) {
-    const inp = row.querySelector('.tracking-input');
-    const cats = [];
-    row.querySelectorAll('.tracking-cat:checked').forEach(function (cb) { cats.push(cb.value); });
-    if (inp && inp.value.trim()) {
-      data.push({ number: inp.value.trim(), categories: cats });
-    }
-  });
-  return data;
-}
-
-function validateTracking() {
-  const cats = window._deliverCats || [];
-  const data = getTrackingData();
-  const covered = {};
-  cats.forEach(function (c) { covered[c] = false; });
-  let hasEmptyNumber = false;
-  let hasEmptyCat = false;
-  const rows = document.querySelectorAll('#trackingList .tracking-row');
-  rows.forEach(function (row) {
-    const inp = row.querySelector('.tracking-input');
-    const checkedCats = row.querySelectorAll('.tracking-cat:checked');
-    if (!inp.value.trim()) hasEmptyNumber = true;
-    if (checkedCats.length === 0) hasEmptyCat = true;
-    if (inp.value.trim()) {
-      checkedCats.forEach(function (cb) { covered[cb.value] = true; });
-    }
-  });
-  if (hasEmptyNumber) return '存在未填写的物流单号';
-  if (hasEmptyCat) return '存在未选择类别的物流单号';
-  const missing = cats.filter(function (c) { return !covered[c]; });
-  if (missing.length > 0) return '以下类别尚未登记物流单号：' + missing.join('、');
-  return null;
-}
-
-// 更新所有行的可用类别（已被其他行选中的类别隐藏）
-function updateTrackingCats() {
-  const rows = document.querySelectorAll('#trackingList .tracking-row');
-  // 收集所有已选类别（按行分组）
-  const selectedByRow = [];
-  rows.forEach(function (row) {
-    const selected = [];
-    row.querySelectorAll('.tracking-cat:checked').forEach(function (cb) { selected.push(cb.value); });
-    selectedByRow.push(selected);
-  });
-  // 对每一行，隐藏已经被其他行选中的类别
-  rows.forEach(function (row, rowIdx) {
-    const otherSelected = {};
-    selectedByRow.forEach(function (sels, idx) {
-      if (idx !== rowIdx) {
-        sels.forEach(function (c) { otherSelected[c] = true; });
-      }
-    });
-    row.querySelectorAll('.tracking-cat-label').forEach(function (label) {
-      const cat = label.dataset.cat;
-      const cb = label.querySelector('.tracking-cat');
-      if (otherSelected[cat] && !cb.checked) {
-        label.style.display = 'none';
-      } else {
-        label.style.display = 'flex';
-      }
-    });
-  });
-}
-
-function updateTrackingStatus() {
-  const statusEl = document.getElementById('trackingStatus');
-  if (!statusEl) return;
-  const err = validateTracking();
-  if (err) {
-    statusEl.textContent = err;
-    statusEl.style.color = '#e74c3c';
-  } else {
-    const cats = window._deliverCats || [];
-    statusEl.textContent = '所有类别（' + cats.join('、') + '）均已登记物流单号';
-    statusEl.style.color = '#27ae60';
-  }
-}
-document.getElementById('deliverOrderSel').addEventListener('change', function () {
-  deliverErrClear('deliverOrder');
-  renderDeliverInfo();
-});
 document.getElementById('deliverDate').addEventListener('change', function () { deliverErrClear('deliverDate'); });
-document.getElementById('addTrackingBtn').addEventListener('click', function () { addTrackingRow(null); });
 document.getElementById('deliverSubmitBtn').addEventListener('click', function () {
   const sel = document.getElementById('deliverOrderSel');
   const o = deliverOrders.find(function (x) { return String(x.id) === sel.value; });
@@ -9644,10 +9476,6 @@ document.getElementById('deliverSubmitBtn').addEventListener('click', function (
   }
   const tail = parseFloat(o.final_price || 0) - deliverPaid(o);
   if (tail > 0.01) { deliverErr('deliverTeam', '尾款未收齐（待收 ' + fmtMoney(tail) + '），收齐全额尾款后才能交付'); return; }
-  // 物流单号校验
-  const trackingErr = validateTracking();
-  if (trackingErr) { deliverErr('tracking', trackingErr); return; }
-  const trackingData = getTrackingData();
   sbClient.rpc('mark_order_delivered', { p_id: o.id, p_date: date, p_team: names.join('、') }).then(function (res) {
     if (res.error) { msgEl.textContent = '交付失败：' + (res.error.message || '网络错误'); return; }
     // 根据是否需要上门安装设置状态
